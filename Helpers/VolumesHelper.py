@@ -16,7 +16,7 @@ class VolumesHelper:
         """
         # Конвертация данных
         fullDf = pd.read_csv(fullPath, sep=';')
-        self.fullDf = fullDf.apply(p.convertToDouble)
+        self.fullDf = fullDf.apply(p.convert_to_double)
 
     def save_boxplotes_for_morph_and_floor_types(self,sk_arr,df_full,pref_name,dir):
         for sk in sk_arr:
