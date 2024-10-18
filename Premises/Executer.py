@@ -43,8 +43,7 @@ else:
 premHel = PremiseHelper(full_path)
 # res = premHel.getDfOfSellPremisesByDest('Ритейл')
 # res = str(res[res[p.NamePN].str.contains('КУИ+',False) == True].reset_index().iloc[0][p.NamePN])
-res = premHel.getDfOfSellPremisesByDest('Кладовки')
-res = res.groupby([p.NamePN]).sum()[p.BruPremisePartAreaPN]
+res = premHel.getFlatTypeMatrix(False)
 
 
 print(res)
