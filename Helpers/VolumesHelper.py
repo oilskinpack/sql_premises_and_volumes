@@ -22,7 +22,7 @@ class VolumesHelper:
     def save_boxplotes_for_morph_and_floor_types(self,sk_arr,df_full,pref_name,dir):
         for sk in sk_arr:
             one_sk_df = df_full[df_full['Имя СК'] == sk]
-            volumes_df = one_sk_df.groupby(['Морфотип секции', 'construction_object_id', 'Этаж', 'Тип этажа']).sum(numeric_only=True)[
+            volumes_df = one_sk_df.groupby(['Морфотип секции','Секция','construction_object_id', 'Этаж', 'Тип этажа']).sum(numeric_only=True)[
                 'Объем, м3'].reset_index()
             all_morp = volumes_df['Морфотип секции'].unique()
             for morph in all_morp:
@@ -57,7 +57,8 @@ class VolumesHelper:
             divs_df = divs_df.rename(columns={f'{param_name}_x': f'{param_name}', f'{param_name}_y': 'Эталон'})
             divs_df['Дельта, %'] = abs((divs_df[param_name] - divs_df['Эталон']) / divs_df['Эталон'] * 100)
             divs_df = pd.merge(left=divs_df,right=co_df_info,how='left',on='construction_object_id')
-            divs_df = divs_df[['Морфотип секции','construction_object_id','name','Этаж','Тип этажа','Объем, м3','Эталон','Дельта, %']]
+            divs_df = divs_df[['Морфотип секции','construction_object_id','name','Секция','Этаж','Тип этажа'
+                ,'Объем, м3','Эталон','Дельта, %']]
 
             df_arr[sk] = divs_df
         return  df_arr

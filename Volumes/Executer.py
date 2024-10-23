@@ -82,6 +82,18 @@ if(need_save_info):
 
 #endregion
 
+# #66.946408075
+# outer = dfFull[dfFull['Имя СК']=='Внешняя стена. Кладка']
+# res = outer[(outer['Морфотип секции'] == 'B_CS(CN)5.8')
+#             & (outer['construction_object_id'] == '6016cd2b-68b4-4f26-88eb-171ffbb662d3')
+#             & (outer['Этаж'] == 'Этаж 04')
+#             & (outer['Тип этажа'] == 'Типовой этаж')][['name','version_index','Секция','Этаж','Объем, м3']] ['Объем, м3'].sum()
+#
+# res = outer.groupby(['Морфотип секции','Секция','construction_object_id', 'Этаж', 'Тип этажа']).sum(numeric_only=True)['Объем, м3'].reset_index()
+# res = res[(res['Морфотип секции'] == 'B_CS(CN)5.8')
+#             & (res['construction_object_id'] == '6016cd2b-68b4-4f26-88eb-171ffbb662d3')
+#             & (res['Этаж'] == 'Этаж 04')
+#             & (res['Тип этажа'] == 'Типовой этаж')]
 
 
 
