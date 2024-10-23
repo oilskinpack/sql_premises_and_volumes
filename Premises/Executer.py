@@ -41,10 +41,12 @@ else:
 
 
 premHel = PremiseHelper(full_path)
-# res = premHel.getDfOfSellPremisesByDest('Ритейл')
-# res = str(res[res[p.NamePN].str.contains('КУИ+',False) == True].reset_index().iloc[0][p.NamePN])
-res = premHel.getDfOfSellPremisesByDest('Кладовки')
-res = res.groupby([p.NamePN]).sum()[p.BruPremisePartAreaPN]
-
+res = premHel.getDfOfSellPremisesByDest('Жилье')
+# res = str(res[res[p.name_pn].str.contains('Торговый зал',False) == True].reset_index().iloc[0][p.name_pn])
+# res = res[res[p.adsk_premise_number]=='4.4.7'][[p.name_pn,'Второй санузел (Оба вне мастерспальни)']]
+# res = p.show_columns_with_word(res,'санузел')
+res = premHel.getDfOfSellPremisesByDest('Ритейл').reset_index()
+res = res[[p.adsk_premise_number,p.premise_part_number,p.name_pn,p.bru_premise_part_area_pn]]
+res.to_excel(rf'D:\Khabarov\RVT\ДЕП04\Ритейл.xlsx',sheet_name='Ритейл',index=False)
 
 print(res)
