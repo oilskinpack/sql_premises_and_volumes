@@ -5,6 +5,7 @@ import sys
 import pandas as pd
 
 
+
 class ParamsAndFuns:
     #Основные параметры
     name_pn = 'Имя'
@@ -230,6 +231,60 @@ class ParamsAndFuns:
         full_time = fin_t - start_t
         mbite = round(sys.getsizeof(df) * (0.125*(10**(-6))),2)
         print(f'Затраченное время: {full_time}, вес: {mbite} МБайт')
+
+    @staticmethod
+    def load_few_df(dir,name_arr):
+        columns = pd.read_csv(dir+name_arr[0],sep=';').columns
+        dfFull = pd.DataFrame(columns=columns)
+        for name in name_arr:
+            df = pd.read_csv(dir + name, sep=';')
+            dfFull = pd.concat([dfFull, df], sort=False, axis=0)
+        return dfFull
+
+    @staticmethod
+    def save_log(dfFull,short_name,dir):
+        log = '=====ИНФОРМАЦИЯ ДЛЯ ПРОВЕРКИ====='
+
+        #Версии и количество
+        log = log + '\nСостав моделей по версиям и количеству элементов\n'
+        value = dfFull[['name', 'version_index']].value_counts()
+        info = str(value)
+        log = log + info
+
+        #Секции и морфотипы
+        log = log + '\n\nСекции и их морфотипы\n'
+        value = dfFull[['name', 'Секция', 'Морфотип секции']].value_counts().reset_index().sort_values(
+                by=['name', 'Секция', 'Морфотип секции'])
+        info = str(value)
+        log = log + info
+
+        # Сколько элементов без секции
+        null_sect_count = len(dfFull[dfFull['Секция'].isnull()])
+        log = log + f'\n\nЭлементы без ADSK_Номер секции - {null_sect_count}\n'
+
+        # Сколько элементов без этажа
+        null_floor_count = len(dfFull[dfFull['Этаж'].isnull()])
+        log = log + f'\n\nЭлементы без ADSK_Этаж - {null_floor_count}\n'
+
+        # Незаполненные секции
+        log = log + '\n\nНезаполненные секции\n'
+        value = dfFull[dfFull['Морфотип секции'].isnull()]
+        value = value[['name', 'Секция','Этаж']].value_counts().reset_index().sort_values(
+            by=['name', 'Секция','Этаж'])
+        info = str(value)
+        log = log + info
+
+        # Незаполненные этажи
+        log = log + '\n\nНезаполненные этажи\n'
+        value = dfFull[dfFull['Тип этажа'].isnull()]
+        value = value[['name', 'Секция', 'Этаж']].value_counts().reset_index().sort_values(
+            by=['name', 'Секция', 'Этаж'])
+        info = str(value)
+        log = log + info
+
+
+        with open(dir + fr'\{short_name}_info.txt', "w") as file:
+            file.write(log)
 
 
 

@@ -134,15 +134,15 @@ class DbConnector():
 
         return dfFull
 
-    def get_volumes_df(self,co_id,stage_name,sk_arr):
+    def get_volumes_df(self,co_df_info,sk_arr):
         dfFull = []
         df_calc_ids = []
         calc_ids_arr = []
         start_time = time.time()
         # Стадии
-        proper_stage_id = self.get_stage_df(stage_name)
+        # proper_stage_id = self.get_stage_df(stage_name)
         # Id нужной стадии нужного объекта строительства
-        proper_model_stage_id = self.get_model_stages_for_objects(proper_stage_id,co_id)
+        proper_model_stage_id = self.get_model_stages_for_objects(co_df_info)
         if(proper_model_stage_id is np.nan):
             print('Не найдена запрашиваемая стадия для объектов')
             return np.nan
@@ -172,7 +172,9 @@ class DbConnector():
         # Список всех calc_id которые нужны
         df_calc_ids = dfFull[['calc_id','name', 'version_index', 'model_version_id', 'model_id',
                               'created_at', 'recognized', 'elements_count', 'total_elements_count']]
-        calc_ids_arr = str(tuple(df_calc_ids.astype(str)['calc_id'].array))
+        #Берем самую позднюю калькуляцию
+        latest_calcs = df_calc_ids.groupby('model_version_id', group_keys=False).apply(lambda x: x.nlargest(1, "created_at"))
+        calc_ids_arr = str(tuple(latest_calcs.astype(str)['calc_id'].array))
 
         # =====Распознавание=====
         # Параметры распознавания - берутся только нужные расчеты и нужные СК
@@ -211,7 +213,7 @@ class DbConnector():
         dfFull = pd.merge(left=dfFull, right=df_model_info, how='left', on='model_version_element_id')
 
         #Добавляем секции
-        dfFull = self.add_section_info_to_df(stage_name, co_id, dfFull)
+        dfFull = self.add_section_info_to_df(co_df_info= co_df_info, df_full=dfFull)
 
         #Время
         fin_time = time.time()
@@ -227,22 +229,37 @@ class DbConnector():
         proper_stage_id = str(dfStages.iloc[0]['stage_id'])
         return proper_stage_id
 
-    def get_model_stages_for_objects(self,stage_id,co_ids):
-        # Стадии модели
-        if (type(co_ids) is str):
-            myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id = '{co_ids}'"
+    def get_model_stages_for_objects(self,co_df_info):
+        stages_obj_df = []
+        stages_dict = {'Концепция планировок':'656c5b44-4f34-406e-b548-b490f634f862'
+                       ,'Стадия П':'d1df7cfd-38d5-41b9-af73-8274ca8b7eaf'
+                       ,'Стадия РД':'49f5f46c-d326-4cb5-94de-baa38e9a664c'}
+        stages = co_df_info['Стадия'].unique()
+        for stage in stages:
+            stage_id = stages_dict[stage]
+            co_ids = (tuple(co_df_info[co_df_info['Стадия']==stage]['construction_object_id'].array))
+            myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id IN {co_ids}"
             dfModelStages = pd.read_sql_query(myQuery, con=self.engine)
+            if(len(stages_obj_df) == 0):
+                stages_obj_df = dfModelStages
+            else:
+                stages_obj_df = pd.concat([stages_obj_df,dfModelStages],axis=0)
 
-            if(len(dfModelStages) == 0):
-                return np.nan
-            proper_model_stage_id = str(dfModelStages.iloc[0]['model_stage_id'])
-        elif (type(co_ids) is tuple):
-            myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id IN {str(co_ids)}"
-            dfModelStages = pd.read_sql_query(myQuery, con=self.engine)
-
-            if (len(dfModelStages) == 0):
-                return np.nan
-            proper_model_stage_id = str(tuple(dfModelStages.astype(str)['model_stage_id'].array))
+        # # Стадии модели
+        # if (type(co_ids) is str):
+        #     myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id = '{co_ids}'"
+        #     dfModelStages = pd.read_sql_query(myQuery, con=self.engine)
+        #
+        #     if(len(dfModelStages) == 0):
+        #         return np.nan
+        #     proper_model_stage_id = str(dfModelStages.iloc[0]['model_stage_id'])
+        # elif (type(co_ids) is tuple):
+        #     myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id IN {str(co_ids)}"
+        #     dfModelStages = pd.read_sql_query(myQuery, con=self.engine)
+        #
+        #     if (len(dfModelStages) == 0):
+        #         return np.nan
+            proper_model_stage_id = str(tuple(stages_obj_df.astype(str)['model_stage_id'].array))
         return proper_model_stage_id
 
     def get_model_ids_str(self,df_models):
@@ -371,30 +388,36 @@ class DbConnector():
         df_sect_info = df_sect_info.rename(columns={'title_x':'Секция','title_y':'Морфотип секции','is_parking':'Секция паркинг'})
         return df_sect_info
 
-    def add_section_info_to_df(self, stage, coId, df_full):
-        proper_stage_id = self.get_stage_df(stage)
+    def add_section_info_to_df(self,co_df_info, df_full):
         # Id нужной стадии нужного объекта строительства
-        proper_model_stage_id = self.get_model_stages_for_objects(proper_stage_id, coId)
+        proper_model_stage_id = self.get_model_stages_for_objects(co_df_info)
         if (proper_model_stage_id is np.nan):
             print('Не найдена запрашиваемая стадия для объектов')
 
-        # Модели
+        # Версии модели
         df_models = self.get_models_versions_full_df(proper_model_stage_id)[['model_id', 'model_stage_id']]
-
-        proper_stage_id = self.get_stage_df(stage)
-        if (type(coId) is str):
-            myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{proper_stage_id}' AND construction_object_id = '{coId}'"
+        stages_obj_df = []
+        stages_dict = {'Концепция планировок': '656c5b44-4f34-406e-b548-b490f634f862'
+            , 'Стадия П': 'd1df7cfd-38d5-41b9-af73-8274ca8b7eaf'
+            , 'Стадия РД': '49f5f46c-d326-4cb5-94de-baa38e9a664c'}
+        stages = co_df_info['Стадия'].unique()
+        for stage in stages:
+            stage_id = stages_dict[stage]
+            co_ids = (tuple(co_df_info[co_df_info['Стадия'] == stage]['construction_object_id'].array))
+            myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id IN {co_ids}"
             dfModelStages = pd.read_sql_query(myQuery, con=self.engine)
-        elif (type(coId) is tuple):
-            myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{proper_stage_id}' AND construction_object_id IN {str(coId)}"
-            dfModelStages = pd.read_sql_query(myQuery, con=self.engine)
+            if (len(stages_obj_df) == 0):
+                stages_obj_df = dfModelStages
+            else:
+                stages_obj_df = pd.concat([stages_obj_df, dfModelStages], axis=0)
 
-        df_constr_id_info = pd.merge(left=df_models, right=dfModelStages, how='left', on='model_stage_id')[
+        df_constr_id_info = pd.merge(left=df_models, right=stages_obj_df, how='left', on='model_stage_id')[
             ['model_id', 'construction_object_id']]
         df_full['model_id'] = df_full['model_id'].astype(str)
         df_constr_id_info['model_id'] = df_constr_id_info['model_id'].astype(str)
         df_full = pd.merge(left=df_full, right=df_constr_id_info, how='left', on='model_id')
 
+        coId = tuple(co_df_info['construction_object_id'].unique())
         df_section_info = self.get_section_df_info(coId)
         df_floors_info = self.get_floor_df_info(coId)
 

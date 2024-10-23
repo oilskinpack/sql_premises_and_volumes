@@ -295,7 +295,11 @@ class PremiseHelper:
         fullParkingArea = \
         fullDf[(fullDf[p.bru_category_pn] == 'Паркинг') & (fullDf[p.name_pn].str.contains('Автостоянк'))][
             p.bru_premise_part_area_pn].sum()
-        meanParkingArea = carsAreaParts / carsCount
+        if(carsCount == 0):
+            meanParkingArea = 0
+        else:
+            meanParkingArea = carsAreaParts / carsCount
+
 
 
         calcCMR = pd.DataFrame(columns=['Наименование', 'Площадь,м2'])

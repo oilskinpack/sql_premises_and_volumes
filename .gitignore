@@ -9,6 +9,9 @@ __pycache__/
 # RevitModels
 *.rvt
 Access/
+Data/
+Plots/
+
 
 # Distribution / packaging
 .Python
