@@ -234,6 +234,20 @@ class ParamsAndFuns:
 
     @staticmethod
     def load_few_df(dir,name_arr):
+        """
+        Метод для загрузки нескольких датафреймов и объединения их в один
+        Parameters
+        ----------
+        dir : (str)
+            Директория
+        name_arr : []
+            Список имен файлов в формате csv, разделитель ';'
+
+        Returns
+        -------
+        pd.Dataframe
+            Полный датафрейм
+        """
         columns = pd.read_csv(dir+name_arr[0],sep=';').columns
         dfFull = pd.DataFrame(columns=columns)
         for name in name_arr:
@@ -243,6 +257,22 @@ class ParamsAndFuns:
 
     @staticmethod
     def save_log(dfFull,short_name,dir):
+        """
+        Сохранение txt лога с информацией о собранном датафрейме СК
+        Parameters
+        ----------
+        dfFull : pd.Dataframe
+            Полный датафрейм
+        short_name : (str)
+            Короткое название для суффикса в логе (какие СК были собраны) - Кладка
+        dir : (str)
+            Директория
+
+        Returns
+        -------
+        None
+            Сохраняет лог в формате txt
+        """
         log = '=====ИНФОРМАЦИЯ ДЛЯ ПРОВЕРКИ====='
 
         #Версии и количество
@@ -281,8 +311,6 @@ class ParamsAndFuns:
             by=['name', 'Секция', 'Этаж'])
         info = str(value)
         log = log + info
-
-
         with open(dir + fr'\{short_name}_info.txt', "w") as file:
             file.write(log)
 
