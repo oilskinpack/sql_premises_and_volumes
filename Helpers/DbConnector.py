@@ -4,28 +4,44 @@ from sqlalchemy import create_engine
 from Helpers.ParamsAndFuns import ParamsAndFuns as p
 import time
 
+
 class DbConnector():
-    """
-    Класс для создания подключения к БД
-
-    Attributes
-    -----------
-    engine: _engine.Engine
-        Экземпляр подключения
-
-    Methods
-    --------
-    createEngine():
-        Создает экземпляр подключения
-
-    """
-
     def __init__(self,host,user,password,database):
+        '''
+        Класс для создания экземпляра подключения к БД и отправке запросов
+        Parameters
+        ----------
+        host : (str)
+            Хост по форме - "111.11.111.111:1111"
+        user : (str)
+            Имя пользователя - "p.petrov"
+        password : (str)
+            Пароль - "qwertyPassword"
+        database : (str)
+            Имя БД - "myDataBase"
+        '''
         self.engine = create_engine(f"postgresql://{user}:{password}@{host}/{database}")
         print('Подключено')
 
     def getFullDfPremise(self,coId,stage,modelType,version = 999):
+        """
+        Метод собирает из БД датафрейм со всеми частями помещений конкретного объекта, стадии и версии
+        Parameters
+        ----------
+        coId : (str)
+            Id объекта строительства
+        stage : (str)
+            Стадия проекта
+        modelType : (str)
+            Тип данных которые нужны (premises)
+        version : (int)
+            Версия модели. Если нужна крайняя - 999
 
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм с частями помещений по всему объекту
+        """
         # Стадии
         #  #   Column             Non-Null Count  Dtype
         # ---  ------             --------------  -----
@@ -135,6 +151,21 @@ class DbConnector():
         return dfFull
 
     def get_volumes_df(self,co_df_info,sk_arr):
+        """
+        Метод для получения датафрейма по выбранным СК из БД
+
+        Parameters
+        ----------
+        co_df_info : (pd.Dataframe)
+            Датафрейм с колонками ["Название объекта",'Стадия','id']
+        sk_arr : (arr)
+            Список строительных конструкций
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм со всеми экземплярами строительных конструкций по необходимым объектам, необходимой стадии
+        """
         dfFull = []
         df_calc_ids = []
         calc_ids_arr = []
@@ -153,7 +184,7 @@ class DbConnector():
             print('Не найдена запрашиваемая стадия для одного из объектов')
             return np.nan
 
-
+        #Нужные айди моделей
         proper_model_ids_str = self.get_model_ids_str(df_models)
 
         # Версии модели
@@ -230,6 +261,19 @@ class DbConnector():
         return proper_stage_id
 
     def get_model_stages_for_objects(self,co_df_info):
+        """
+        Метод получения айди стадии для конкретных объектов
+
+        Parameters
+        ----------
+        co_df_info : (pd.Dataframe)
+            Датафрейм с информацией по объектам
+
+        Returns
+        -------
+        str
+            Строка с перечислением id стадий выбранных объектов
+        """
         stages_obj_df = []
         stages_dict = {'Концепция планировок':'656c5b44-4f34-406e-b548-b490f634f862'
                        ,'Стадия П':'d1df7cfd-38d5-41b9-af73-8274ca8b7eaf'
@@ -244,25 +288,24 @@ class DbConnector():
                 stages_obj_df = dfModelStages
             else:
                 stages_obj_df = pd.concat([stages_obj_df,dfModelStages],axis=0)
-
-        # # Стадии модели
-        # if (type(co_ids) is str):
-        #     myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id = '{co_ids}'"
-        #     dfModelStages = pd.read_sql_query(myQuery, con=self.engine)
-        #
-        #     if(len(dfModelStages) == 0):
-        #         return np.nan
-        #     proper_model_stage_id = str(dfModelStages.iloc[0]['model_stage_id'])
-        # elif (type(co_ids) is tuple):
-        #     myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id IN {str(co_ids)}"
-        #     dfModelStages = pd.read_sql_query(myQuery, con=self.engine)
-        #
-        #     if (len(dfModelStages) == 0):
-        #         return np.nan
             proper_model_stage_id = str(tuple(stages_obj_df.astype(str)['model_stage_id'].array))
         return proper_model_stage_id
 
     def get_model_ids_str(self,df_models):
+        """
+        Метод получения строкового перечисления id моделей из датафрейма с информацией по конкретным моделям конкретной
+        стадии
+
+        Parameters
+        ----------
+        df_models : (pd.Dataframe)
+            Датафрейм с перечислением айди моделей
+
+        Returns
+        -------
+        str
+            Строковое перечисление
+        """
         # Модели
         # dfModels = self.get_models_versions_full_df(model_stage_id)
         proper_model_id = df_models['model_id'].astype(str).array
@@ -270,6 +313,17 @@ class DbConnector():
         return proper_model_ids
 
     def get_models_versions_full_df(self,model_stage_id):
+        """
+        Метод для получения датафрейма с id версий моделей
+        Parameters
+        ----------
+        model_stage_id:(str)
+            Строковое перечисление айди стадий конкретных объектов
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм со всеми версиями моделей
+        """
         if (',' in model_stage_id):
             # Модели
             myQuery = f"SELECT * FROM bim.models WHERE model_stage_id IN {model_stage_id} AND model_type = 'volumes'"
@@ -284,6 +338,21 @@ class DbConnector():
         return df_models
 
     def get_last_versions(self,model_ids_str,models_version_full_df):
+        """
+        Метод для получения только крайних версий моделей из полного перечня версий моделей
+        Parameters
+        ----------
+        model_ids_str:(str)
+            Строковое перечисление айди моделей
+        models_version_full_df:(pd.Dataframe)
+            Датафрейм со всеми версиями моделей
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм с крайними версиями
+
+        """
         # Версии модели
         myQuery = f"SELECT * FROM bim.model_versions WHERE model_id IN {model_ids_str}"
         dfModelVersions = pd.read_sql_query(myQuery, con=self.engine)
@@ -297,12 +366,39 @@ class DbConnector():
         return proper_model_versions_str
 
     def get_calcs_df_by_model_version_ids(self,model_versions):
+        """
+        Метод получения датафрейма с информацией о расчете для версий
+        Parameters
+        ----------
+        model_versions : (str)
+            Строковое перечисление айди версий
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм с айди расчета
+
+        """
         # Айди расчета
         myQuery = f"SELECT * FROM calc.calcs WHERE model_version_id IN {model_versions}"
         df_calcs = pd.read_sql_query(myQuery, con=self.engine)
         return df_calcs
 
     def get_calc_recogn_params(self,calc_ids_arr,sk_arr):
+        """
+        Метод получения датафрейма с параметрами распознавания
+        Parameters
+        ----------
+        calc_ids_arr : (str)
+            Строковое перечисление айди расчета
+        sk_arr : []
+            Список СК
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм со значениями
+        """
         # =====Распознавание=====
         # Параметры распознавания - берутся только нужные расчеты и нужные СК
         myQuery = f"SELECT * FROM calc.calcs_j_param_recognition WHERE calc_id IN {calc_ids_arr} AND value IN {str(sk_arr)}"
@@ -310,6 +406,18 @@ class DbConnector():
         return df_calc_recogn_param
 
     def get_recogn_param_values(self,df_calc_recogn_params):
+        """
+        Метод для добавления названия к значению параметров распознавания
+        Parameters
+        ----------
+        df_calc_recogn_params : (pd.Dataframe)
+            Датафрейм со значениями
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм со значениями и названиями
+        """
         # Названия параметров
         myQuery = f"SELECT * FROM param.recognition"
         df_recognition_ids = pd.read_sql_query(myQuery, con=self.engine)
@@ -321,6 +429,20 @@ class DbConnector():
         return df_calc_recogn_param
 
     def get_standard_param_values(self,calc_ids_arr,all_model_vers_elem_ids):
+        """
+        Метод получения значений параметров стандартизации
+        Parameters
+        ----------
+        calc_ids_arr : (str)
+            Айди расчета
+        all_model_vers_elem_ids : (str)
+            Айди версий элементов
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм со значениями
+        """
         # =====Стандартизация=====
         # Параметры стандартизации
         myQuery = f"SELECT * FROM calc.calcs_j_param_standard WHERE calc_id IN {calc_ids_arr} AND model_version_element_id IN {all_model_vers_elem_ids}"
@@ -337,6 +459,20 @@ class DbConnector():
         return df_calc_standard_param
 
     def get_calculation_param_values(self,calc_ids_arr,all_model_vers_elem_ids):
+        """
+        Метод получения значения параметров расчета
+        Parameters
+        ----------
+        calc_ids_arr : (str)
+            Айди расчета
+        all_model_vers_elem_ids : (str)
+            Айди версий элементов
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм со значениями
+        """
         # =====Расчет=====
         # Параметры расчета
         myQuery = f"SELECT * FROM calc.calcs_j_param_calculation WHERE calc_id IN {calc_ids_arr} AND model_version_element_id IN {all_model_vers_elem_ids}"
@@ -353,6 +489,20 @@ class DbConnector():
         return df_calc_calculation_param
 
     def get_location_param_values(self,calc_ids_arr,all_model_vers_elem_ids):
+        """
+        Метод получения значения параметров расположения
+        Parameters
+        ----------
+        calc_ids_arr : (str)
+            Айди расчета
+        all_model_vers_elem_ids : (str)
+            Айди версий элементов
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм со значениями
+        """
         # =====Локация=====
         # Параметры расчета
         myQuery = f"SELECT * FROM calc.calcs_j_param_location WHERE calc_id IN {calc_ids_arr} AND model_version_element_id IN {all_model_vers_elem_ids}"
@@ -369,6 +519,18 @@ class DbConnector():
         return df_calc_location_param
 
     def get_section_df_info(self,coId):
+        """
+        Получение датафрейма с информацией о секциях для ОС
+        Parameters
+        ----------
+        coId : (str)
+            Строковое перечисление айди ОС
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм с информацией о секциях
+        """
         # Секции для нужных объектов
         if (type(coId) is str):
             myQuery = f"SELECT * FROM sections.construction_object_sections WHERE construction_object_id = '{coId}'"
@@ -389,6 +551,20 @@ class DbConnector():
         return df_sect_info
 
     def add_section_info_to_df(self,co_df_info, df_full):
+        """
+        Метод для добавления информации о секции в общий датафрейм с СК
+        Parameters
+        ----------
+        co_df_info : pd.Dataframe
+            Датафрейм с информацией о объектах
+        df_full : pd.Dataframe
+            Датафрейм со списком СК
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм с информацией о секциях
+        """
         # Id нужной стадии нужного объекта строительства
         proper_model_stage_id = self.get_model_stages_for_objects(co_df_info)
         if (proper_model_stage_id is np.nan):
@@ -430,6 +606,18 @@ class DbConnector():
         return df_full
 
     def get_floor_df_info(self,coId):
+        """
+        Метод получения информации об этажах
+        Parameters
+        ----------
+        coId : pd.Dataframe
+            Датафрейм с информацией об ОС
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм с этажами
+        """
         # Этажи для нужных объектов
         constr_object_sect_ids = tuple(
             self.get_section_df_info(coId)['construction_object_section_id'].astype(str).array)
