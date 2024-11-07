@@ -41,6 +41,9 @@ else:
 
 
 premHel = PremiseHelper(full_path)
-res = premHel.getCalcCmrDf()
+params_arr = ['Номер помещения',p.name_pn,p.bru_section_int_pn
+    ,p.bru_floor_int_pn,p.adsk_index_int_pn
+    ,p.bru_destination_pn,p.type_pn,p.bru_type_pn,p.bru_premise_full_area_pn]
+res = premHel.show_premise_info('4.4.4',params_arr=params_arr)
 
 print(res)
