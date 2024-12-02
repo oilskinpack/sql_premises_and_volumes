@@ -364,3 +364,53 @@ class PremiseHelper:
                                  .groupby([p.adsk_premise_number]).size())
         res = flats_levels_count_df[flats_levels_count_df > 1]
         return res
+
+    def show_premise_info(self,number,params_arr):
+        '''
+        Показывает интересующие поля у нужного помещения (выбор по номеру помещения)
+
+        Parameters
+        ----------
+        number:(str)
+            Номер помещения (ищется по contains)
+        params_arr:[]
+            Массив параметров для вывода
+
+        Returns:pd.Dataframe
+            Датафрейм с информацией
+        -------
+
+        '''
+        premises = self.fullDf
+        res = premises[premises['Номер помещения'].str.contains(number) == True][params_arr]
+        return res
+
+    def areas_info(self,dest):
+        flats = self.getDfOfSellPremisesByDest(dest)
+        noCoefAreaPart = flats[p.bru_premise_part_area_pn].sum(numeric_only=True)
+        noCoefAreaFull = flats.groupby(p.adsk_premise_number).min(numeric_only=True).sum()[p.bru_premise_full_area_pn]
+        noCoefAreaCommon = flats.groupby(p.adsk_premise_number).min(numeric_only=True).sum()[
+            p.bru_premise_common_area_pn]
+        noSummerAreaFull = flats.groupby(p.adsk_premise_number).min(numeric_only=True).sum()[
+            p.bru_premise_non_summer_area_pn]
+        summerAreaFull = flats.groupby(p.adsk_premise_number).min(numeric_only=True).sum()[p.bru_premise_summer_area_pn]
+        livingAreaFull = flats.groupby(p.adsk_premise_number).min(numeric_only=True).sum()[p.bru_premise_living_area_pn]
+
+        df = pd.DataFrame(
+            index=['Площадь без коэф (части помещений)', 'Площадь без коэф', 'Площадь с коэф', 'Площадь без ЛП',
+                   'Площадь ЛП', 'Жилая площадь']
+            , data=[noCoefAreaPart, noCoefAreaFull, noCoefAreaCommon, noSummerAreaFull, summerAreaFull, livingAreaFull],
+            columns=['Площадь м2'])
+        return df
+
+    def premises_with_dif_areas(self,dest):
+        flats = self.getDfOfSellPremisesByDest(dest)
+        dfFullArea = flats.groupby(p.adsk_premise_number).min(numeric_only=True)[
+            p.bru_premise_full_area_pn].reset_index()
+        res = dfFullArea
+        dfPartArea = flats.groupby(p.adsk_premise_number).sum(numeric_only=True)[
+            p.bru_premise_part_area_pn].reset_index()
+        res = dfPartArea
+        full = pd.merge(left=dfFullArea, right=dfPartArea, how='left', on='Номер квартиры')
+        res = full[round(full['Площадь квартиры без коэффициентов'], 2) != round(full['Площадь помещения'], 2)]
+        return res
