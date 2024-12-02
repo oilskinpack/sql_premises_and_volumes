@@ -1,8 +1,13 @@
 import os
 from itertools import groupby
+from operator import index
 
 import numpy as np
 import pandas as pd
+from pandas.core.interchange.dataframe_protocol import DataFrame
+from scipy.constants import value
+from sqlalchemy.dialects.mssql.information_schema import columns
+
 from Helpers.DbConnector import DbConnector
 from Helpers.PremiseHelper import PremiseHelper
 from Helpers.ParamsAndFuns import ParamsAndFuns as p
@@ -41,6 +46,8 @@ else:
 
 
 premHel = PremiseHelper(full_path)
-res = premHel.getCalcCmrDf()
+params_arr = p.retail_elev_list
+res = premHel.getConstrObjParameters()
+
 
 print(res)

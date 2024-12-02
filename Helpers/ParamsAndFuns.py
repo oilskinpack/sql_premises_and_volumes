@@ -19,7 +19,7 @@ class ParamsAndFuns:
     bru_floor_int_pn = 'Этаж'
     adsk_index_int_pn = 'Индекс квартиры'
     adsk_position_int_pn = 'ADSK_Позиция'
-    bru_premise_number_pn = 'BRU_Номер помещения'
+    bru_premise_number_pn = 'Номер помещения'
 
     #Типы
     adsk_type_pn = 'Тип квартиры'
@@ -31,6 +31,7 @@ class ParamsAndFuns:
     bru_premise_non_summer_area_pn = 'Площадь без летних помещений'
     bru_premise_summer_area_pn = 'Площадь летних'
     bru_premise_living_area_pn = 'Площадь квартиры жилая'
+    bru_premise_common_area_pn = 'Площадь квартиры общая'
 
     #Характеристики вида окон
     on_three_and_more_sides = 'На три и более сторон'
@@ -45,7 +46,7 @@ class ParamsAndFuns:
     summer_area_names = ['Балкон', 'Лоджия', 'Лоджия (холодная)', 'Терраса на земле', 'Терраса']
 
     #Характеристики этажности ритейла
-    retail_elev_list = ['Одноуровневое на 1 этаже', 'Одноуровневое на 2 этаже', 'Одноуровневое на -1 этаже'
+    retail_elev_list = [bru_premise_number_pn,name_pn,'Одноуровневое на 1 этаже', 'Одноуровневое на 2 этаже', 'Одноуровневое на -1 этаже'
                       ,'Многоуровневое -1 этаж до 30проц','Многоуровневое -1 этаж более 30проц','Многоуровневое 2 этаж до 50проц'
                       ,'Многоуровневое 2 этаж более 50проц']
 
