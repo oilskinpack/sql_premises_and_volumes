@@ -322,6 +322,14 @@ class PremiseHelper:
         return calcCMR
 
     def getWindowsDf(self):
+        '''
+        Метод получения датафрейма с информацией по окнам
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм с окнами
+        '''
         fullDf = self.fullDf
         windowsDf = fullDf[
             (fullDf[p.bru_destination_pn] == 'Окно') | (fullDf[p.bru_destination_pn] == 'Витраж')]
@@ -334,6 +342,14 @@ class PremiseHelper:
         return windowsFlats
 
     def getWindowFlatsOrienDf(self):
+        '''
+        Получение датафрейма с ориентацией окон жилья
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм с инфой по окнам жилья
+        '''
         windowsFlats = self.getWindowsDf()
         windowsFlats['Номер помещения'] = np.where(windowsFlats['Номер помещения To'] is np.nan,
                                                    windowsFlats['Номер помещения To'],
@@ -344,6 +360,14 @@ class PremiseHelper:
         return windowsFlats
 
     def getGnsDf(self):
+        '''
+        Получение датафрейма по ГНС
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм по ГНС
+        '''
         fullDf = self.fullDf
         gnsDf = fullDf[fullDf[p.bru_destination_pn] == 'ГНС']
         gnsGrouped = gnsDf[[p.section_str_pn, p.bru_floor_int_pn, p.bru_premise_part_area_pn]].groupby(
@@ -351,6 +375,14 @@ class PremiseHelper:
         return gnsGrouped
 
     def get_flats_with_summer_premises(self):
+        '''
+        Получение Датафрейма с информацией по летним помещениям квартир (попадают только квартиры с ЛП)
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм с информацией об ЛП
+        '''
         flatsDf = self.getDfOfSellPremisesByDest('Жилье')
         flatsDf  = flatsDf [flatsDf [p.bru_premise_summer_area_pn] > 0]
         flatsWithSummerPremises = flatsDf[
@@ -359,6 +391,13 @@ class PremiseHelper:
         return flatsWithSummerPremises
 
     def duplex_flats(self):
+        '''
+        Выводит список квартир в два уровня
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм со список квартир
+        '''
         flatPrem = self.getDfOfSellPremisesByDest('Жилье')
         flats_levels_count_df = (flatPrem.groupby([p.adsk_premise_number, p.bru_floor_int_pn]).size().reset_index()
                                  .groupby([p.adsk_premise_number]).size())

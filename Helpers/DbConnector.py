@@ -280,14 +280,22 @@ class DbConnector():
                        ,'Стадия РД':'49f5f46c-d326-4cb5-94de-baa38e9a664c'}
         stages = co_df_info['Стадия'].unique()
         for stage in stages:
+            obj_count = len(co_df_info[co_df_info['Стадия']==stage])
             stage_id = stages_dict[stage]
-            co_ids = (tuple(co_df_info[co_df_info['Стадия']==stage]['construction_object_id'].array))
-            myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id IN {co_ids}"
+            if(obj_count == 1):
+                co_id = co_df_info[co_df_info['Стадия'] == stage]['construction_object_id'].iloc[0]
+                myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id = '{co_id}'"
+            else:
+                co_ids = (tuple(co_df_info[co_df_info['Стадия'] == stage]['construction_object_id'].array))
+                myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id IN {co_ids}"
             dfModelStages = pd.read_sql_query(myQuery, con=self.engine)
             if(len(stages_obj_df) == 0):
                 stages_obj_df = dfModelStages
             else:
                 stages_obj_df = pd.concat([stages_obj_df,dfModelStages],axis=0)
+        if(len(stages_obj_df) == 1):
+            proper_model_stage_id = stages_obj_df.astype(str)['model_stage_id'].iloc[0]
+        else:
             proper_model_stage_id = str(tuple(stages_obj_df.astype(str)['model_stage_id'].array))
         return proper_model_stage_id
 
@@ -578,9 +586,14 @@ class DbConnector():
             , 'Стадия РД': '49f5f46c-d326-4cb5-94de-baa38e9a664c'}
         stages = co_df_info['Стадия'].unique()
         for stage in stages:
+            obj_count = len(co_df_info[co_df_info['Стадия'] == stage])
             stage_id = stages_dict[stage]
-            co_ids = (tuple(co_df_info[co_df_info['Стадия'] == stage]['construction_object_id'].array))
-            myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id IN {co_ids}"
+            if(obj_count == 1):
+                co_id = co_df_info[co_df_info['Стадия'] == stage]['construction_object_id'].iloc[0]
+                myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id = '{co_id}'"
+            else:
+                co_ids = (tuple(co_df_info[co_df_info['Стадия'] == stage]['construction_object_id'].array))
+                myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id IN {co_ids}"
             dfModelStages = pd.read_sql_query(myQuery, con=self.engine)
             if (len(stages_obj_df) == 0):
                 stages_obj_df = dfModelStages
@@ -593,7 +606,10 @@ class DbConnector():
         df_constr_id_info['model_id'] = df_constr_id_info['model_id'].astype(str)
         df_full = pd.merge(left=df_full, right=df_constr_id_info, how='left', on='model_id')
 
-        coId = tuple(co_df_info['construction_object_id'].unique())
+        if(len(co_df_info) == 1):
+            coId = co_df_info['construction_object_id'].iloc[0]
+        else:
+            coId = tuple(co_df_info['construction_object_id'].unique())
         df_section_info = self.get_section_df_info(coId)
         df_floors_info = self.get_floor_df_info(coId)
 

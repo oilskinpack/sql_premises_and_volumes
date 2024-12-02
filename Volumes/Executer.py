@@ -18,8 +18,7 @@ res = ''
 
 #region Параметры подключения
 need_load_full = True
-need_merge = False
-need_save_info = True
+need_save_info = False
 
 host = ai.Host
 database = ai.Database
@@ -40,14 +39,6 @@ sk_arr = ai.sk_arr
 if need_load_full:
     volHel = VolumesHelper(file_dir + load_name)
     dfFull = volHel.fullDf
-
-#Если нужно объединить несколько датафреймов в один
-elif(need_merge):
-    dfFull = p.load_few_df(ai.file_dir_volumes,ai.concat_name_volumes)
-    dfFull.to_csv(file_dir + save_name, sep=';', index_label=False)
-    volHel = VolumesHelper(file_dir + save_name)
-    p.save_log(dfFull, ai.sk_short_info, ai.file_dir_volumes)
-
 #Если получаем впервые выгрузку из БД
 else:
     # Создаем экземпляр для выгрузки из БД
@@ -59,13 +50,10 @@ else:
     dfFull = volHel.fullDf
     p.save_log(volHel.fullDf, ai.sk_short_info, ai.file_dir_volumes)
 #endregion
-
 #region Получение эталонов
 # Создаем экземпляр для выгрузки из БД
 standarts_dict = volHel.get_standarts(dfFull=dfFull,sk_arr= sk_arr,param_name='Объем, м3')
 deviation_dict = volHel.get_df_arr_sk_dev(dfFull= dfFull,sk_arr= sk_arr, param_name='Объем, м3', co_df_info=co_df_info)
-
-print(standarts_dict[sk_arr[0]])
 
 #Сохранение
 if(need_save_info):
@@ -81,20 +69,6 @@ if(need_save_info):
 
 
 #endregion
-
-# #66.946408075
-# outer = dfFull[dfFull['Имя СК']=='Внешняя стена. Кладка']
-# res = outer[(outer['Морфотип секции'] == 'B_CS(CN)5.8')
-#             & (outer['construction_object_id'] == '6016cd2b-68b4-4f26-88eb-171ffbb662d3')
-#             & (outer['Этаж'] == 'Этаж 04')
-#             & (outer['Тип этажа'] == 'Типовой этаж')][['name','version_index','Секция','Этаж','Объем, м3']] ['Объем, м3'].sum()
-#
-# res = outer.groupby(['Морфотип секции','Секция','construction_object_id', 'Этаж', 'Тип этажа']).sum(numeric_only=True)['Объем, м3'].reset_index()
-# res = res[(res['Морфотип секции'] == 'B_CS(CN)5.8')
-#             & (res['construction_object_id'] == '6016cd2b-68b4-4f26-88eb-171ffbb662d3')
-#             & (res['Этаж'] == 'Этаж 04')
-#             & (res['Тип этажа'] == 'Типовой этаж')]
-
 
 
 
