@@ -453,3 +453,393 @@ class PremiseHelper:
         full = pd.merge(left=dfFullArea, right=dfPartArea, how='left', on='Номер квартиры')
         res = full[round(full['Площадь квартиры без коэффициентов'], 2) != round(full['Площадь помещения'], 2)]
         return res
+    
+    def sfa_and_gfa_areas(self):
+        all_parts = self.fullDf.apply(p.convert_to_double)
+        sfa_parking = self.getSellArea('Паркинг', True)
+        sfa_house = (self.getSellArea('Жилье', True)
+                     + self.getSellArea('Ритейл', True)
+                     + self.getSellArea('Кладовки', True))
+        gfa_parking = all_parts[(all_parts[p.section_str_pn].str.contains('паркинг', False) == True)
+                                & ((all_parts[p.type_pn] == 'МОП') | (all_parts[p.type_pn] == 'Технические помещения'))] \
+            [p.bru_premise_part_area_pn].sum()
+
+        gfa_house = all_parts[(all_parts[p.section_str_pn].str.contains('паркинг', False) == False)
+                              & (all_parts[p.type_pn] != 'ГНС')
+                              & (all_parts[p.type_pn] != 'Машино-место')][p.bru_premise_part_area_pn].sum()
+
+        gfa_sfa_df = pd.DataFrame(columns=['Площадь, м2']
+                                  , data=[sfa_house, gfa_house, sfa_parking, gfa_parking]
+                                  , index=['SFA дом', 'GFA дом', 'SFA паркинг', 'GFA паркинг'])
+        return gfa_sfa_df
+
+    def technical_economic_values(self):
+        all_parts = self.fullDf.apply(p.convert_to_double)
+        gns = self.getGnsDf()
+        flats = self.getDfOfSellPremisesByDest('Жилье').apply(p.convert_to_double)
+        retails = self.getDfOfSellPremisesByDest('Ритейл').apply(p.convert_to_double)
+        pantries = self.getDfOfSellPremisesByDest('Кладовки').apply(p.convert_to_double)
+
+        development_area = gns.groupby(p.section_str_pn)[p.bru_premise_part_area_pn].sum()
+        # region Этажи
+        # Этажность
+        below_zero_floors = all_parts.groupby(p.section_str_pn)[p.bru_floor_int_pn].max().rename('Этажность')
+        # Кол-во этажей
+        floors_count = (all_parts.groupby([p.section_str_pn, p.bru_floor_int_pn]).size().reset_index().groupby(
+            [p.section_str_pn]).size()
+                        .rename('Кол-во этажей,в том числе:'))
+        # Подземных этажей
+        under_zero_floors = (
+            all_parts[all_parts[p.bru_floor_int_pn] < 0].groupby([p.section_str_pn, p.bru_floor_int_pn]).size()
+            .reset_index().groupby([p.section_str_pn]).size().rename('        - подземных этажей'))
+
+        # endregion
+        # region Количество квартир
+        # Количество всех квартир
+        flats_count = (flats.groupby([p.section_str_pn, p.adsk_premise_number]).size().reset_index().groupby(
+            [p.section_str_pn]).size()
+                       .rename('Кол-во квартир'))
+
+        # region 1-комнатные
+        # Кол-во 1-комн квартир
+        all_one_room_flats_count = (flats[(flats[p.adsk_type_pn].isin(['С', '1С', '1К', '1Д', 'СП', 'СД']))
+                                          & (flats[p.rooms_count].isin([1, 0]))].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                    .reset_index()).groupby([p.section_str_pn]).size().rename(
+            'Квартира 1-комнатная,в том числе:')
+
+        # Кол-во 1С квартир
+        one_room_flats_count = (flats[flats[p.adsk_type_pn].isin(['1С', '1К', '1Д'])].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                .reset_index().groupby([p.section_str_pn]).size()
+                                .rename('        - тип 1С'))
+        # Кол-во С квартир
+        zero_room_flats_count = (
+            flats[flats[p.adsk_type_pn].isin(['С'])].groupby([p.section_str_pn, p.adsk_premise_number]).size()
+            .reset_index().groupby([p.section_str_pn]).size()
+            .rename('        - тип С'))
+        # Кол-во СП квартир
+        one_free_room_flats_count = (flats[(flats[p.adsk_type_pn].isin(['СП']))
+                                           & (flats[p.rooms_count] == 1)].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                     .reset_index().groupby([p.section_str_pn]).size()
+                                     .rename('        - тип 1СП'))
+        # Кол-во СД квартир
+        one_duplex_room_flats_count = (flats[(flats[p.adsk_type_pn].isin(['СД']))
+                                             & (flats[p.rooms_count] == 1)].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                       .reset_index().groupby([p.section_str_pn]).size()
+                                       .rename('        - тип 1СД'))
+        # endregion
+        # region 2-комнатные
+        # Кол-во 2-комн квартир
+        all_two_room_flats_count = (flats[(flats[p.adsk_type_pn].isin(['2С', '2К', '2Д', 'СП', 'СД']))
+                                          & (flats[p.rooms_count].isin([2]))].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                    .reset_index()).groupby([p.section_str_pn]).size().rename(
+            'Квартира 2-комнатная,в том числе:')
+
+        # Кол-во 2С квартир
+        two_room_flats_count = (flats[flats[p.adsk_type_pn].isin(['2С', '2К', '2Д'])].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                .reset_index().groupby([p.section_str_pn]).size()
+                                .rename('        - тип 2С'))
+        # Кол-во 2СП квартир
+        two_free_room_flats_count = (flats[(flats[p.adsk_type_pn].isin(['СП']))
+                                           & (flats[p.rooms_count] == 2)].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                     .reset_index().groupby([p.section_str_pn]).size()
+                                     .rename('        - тип 2СП'))
+        # Кол-во 2СД квартир
+        two_duplex_room_flats_count = (flats[(flats[p.adsk_type_pn].isin(['СД']))
+                                             & (flats[p.rooms_count] == 2)].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                       .reset_index().groupby([p.section_str_pn]).size()
+                                       .rename('        - тип 2СД'))
+
+        # endregion
+        # region 3-комнатная
+        # Кол-во 3-комн квартир
+        all_three_room_flats_count = (flats[(flats[p.adsk_type_pn].isin(['3С', '3К', '3Д', 'СП', 'СД']))
+                                            & (flats[p.rooms_count].isin([3]))].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                      .reset_index()).groupby([p.section_str_pn]).size().rename(
+            'Квартира 3-комнатная,в том числе:')
+
+        # Кол-во 3С квартир
+        three_room_flats_count = (flats[flats[p.adsk_type_pn].isin(['3С', '3К', '3Д'])].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                  .reset_index().groupby([p.section_str_pn]).size()
+                                  .rename('        - тип 3С'))
+        # Кол-во 3СП квартир
+        three_free_room_flats_count = (flats[(flats[p.adsk_type_pn].isin(['СП']))
+                                             & (flats[p.rooms_count] == 3)].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                       .reset_index().groupby([p.section_str_pn]).size()
+                                       .rename('        - тип 3СП'))
+        # Кол-во 3СД квартир
+        three_duplex_room_flats_count = (flats[(flats[p.adsk_type_pn].isin(['СД']))
+                                               & (flats[p.rooms_count] == 3)].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                         .reset_index().groupby([p.section_str_pn]).size()
+                                         .rename('        - тип 3СД'))
+
+        # endregion
+        # region 4-комнатная
+        # Кол-во 4-комн квартир
+        all_four_room_flats_count = (flats[(flats[p.adsk_type_pn].isin(['4С', '4К', '4Д', 'СП', 'СД']))
+                                           & (flats[p.rooms_count].isin([4]))].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                     .reset_index()).groupby([p.section_str_pn]).size().rename(
+            'Квартира 4-комнатная,в том числе:')
+
+        # Кол-во 4С квартир
+        four_room_flats_count = (flats[flats[p.adsk_type_pn].isin(['4С', '4К', '4Д'])].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                 .reset_index().groupby([p.section_str_pn]).size()
+                                 .rename('        - тип 4С'))
+        # Кол-во 4СП квартир
+        four_free_room_flats_count = (flats[(flats[p.adsk_type_pn].isin(['СП']))
+                                            & (flats[p.rooms_count] == 4)].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                      .reset_index().groupby([p.section_str_pn]).size()
+                                      .rename('        - тип 4СП'))
+        # Кол-во 4СД квартир
+        four_duplex_room_flats_count = (flats[(flats[p.adsk_type_pn].isin(['СД']))
+                                              & (flats[p.rooms_count] == 4)].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                                        .reset_index().groupby([p.section_str_pn]).size()
+                                        .rename('        - тип 4СД'))
+
+        # endregion
+        # endregion
+        # region Площади квартир
+        # Площадь жилая
+        living_flat_area_full = (flats[flats[p.adsk_premise_part_number].str.endswith('.1')]
+                                 .groupby([p.section_str_pn, p.adsk_premise_number]).sum().reset_index().groupby(
+            [p.section_str_pn])
+                                 [p.bru_premise_living_area_pn].sum().rename('Жилая площадь квартир'))
+        # Площадь без ЛП
+        no_summer_flat_area_full = (flats[flats[p.adsk_premise_part_number].str.endswith('.1')]
+                                    .groupby([p.section_str_pn, p.adsk_premise_number]).sum().reset_index().groupby(
+            [p.section_str_pn])
+                                    [p.bru_premise_non_summer_area_pn].sum().rename(
+            'Общая площадь квартир без летних помещений'))
+        # Площадь с коэф
+        koef_flat_area_full = (flats[flats[p.adsk_premise_part_number].str.endswith('.1')]
+                               .groupby([p.section_str_pn, p.adsk_premise_number]).sum().reset_index().groupby(
+            [p.section_str_pn])
+                               [p.bru_premise_common_area_pn].sum().rename(
+            'Общая площадь квартир с учетом коэф. для ЛП'))
+        # Площадь без коэф
+        no_koef_flat_area_full = (
+            flats.groupby([p.section_str_pn, p.adsk_premise_number]).sum().reset_index().groupby([p.section_str_pn])
+            [p.bru_premise_part_area_pn].sum().rename('Общая площадь без коэф.'))
+
+        # endregion
+        # region Кол-во встроенных помещений
+
+        # region Коммерция
+        # Кол-во коммерческих помещений
+        retail_count = (
+            retails.groupby([p.section_str_pn, p.adsk_premise_number]).size().groupby(p.section_str_pn).size()
+            .rename('Кол-во коммерческих помещений, в том числе:'))
+        # Кол-во УК
+        retail_MC = (retails[retails[p.type_pn] == 'Управляющая компания'].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).size()
+                     .groupby(p.section_str_pn).size()
+                     .rename('        - помещения УК'))
+        # endregion
+        # region Кладовки
+        # Кол-во всех кладовых
+        pantries_all = (pantries
+                        .groupby([p.section_str_pn, p.adsk_premise_number]).size()
+                        .groupby(p.section_str_pn).size()
+                        .rename('Кол-во помещений кладовых, в том числе:'))
+
+        # Кол-во индивидуальных кладовых
+        pantries_indiv = (pantries[(pantries[p.section_str_pn].str.contains('паркинг', False) == False)]
+                          .groupby([p.section_str_pn, p.adsk_premise_number]).size()
+                          .groupby(p.section_str_pn).size()
+                          .rename('        - индивидуальных кладовых'))
+
+        # Кол-во кладовых паркинга
+        pantries_parking = (pantries[(pantries[p.section_str_pn].str.contains('паркинг', False) == True)]
+                            .groupby([p.section_str_pn, p.adsk_premise_number]).size()
+                            .groupby(p.section_str_pn).size()
+                            .rename('        - кладовых паркинга'))
+        # endregion
+        # region Велосипедные
+        bicycles_count = (all_parts[(all_parts[p.type_pn] == 'МОП') & (
+                    all_parts[p.name_pn].str.contains('Велосипедная', False) == True)]
+                          .groupby(p.section_str_pn)[p.bru_premise_part_area_pn].size().rename(
+            'Количество мест хранения - велосипедные'))
+
+        # endregion
+        # endregion
+        # region Вместимость автостоянки
+
+        cars_count = all_parts[all_parts[p.type_pn] == 'Машино-место'].groupby(p.section_str_pn).size().rename(
+            'Вместимость автостоянки')
+
+        # endregion
+        # region Площадь встроенных помещений
+
+        # region Коммерция
+        # Кол-во коммерческих помещений
+        retail_area = (retails.groupby([p.section_str_pn, p.adsk_premise_number]).sum().groupby(p.section_str_pn)[
+                           p.bru_premise_part_area_pn].sum()
+                       .rename('Площадь коммерческих помещений, в том числе:'))
+        # Кол-во УК
+        retail_MC_area = (retails[retails[p.type_pn] == 'Управляющая компания'].groupby(
+            [p.section_str_pn, p.adsk_premise_number]).sum()
+                          .groupby(p.section_str_pn).sum()[p.bru_premise_part_area_pn]
+                          .rename('        - помещения УК'))
+        # endregion
+        # region Кладовки
+        # Кол-во всех кладовых
+        pantries_all_area = (pantries
+                             .groupby([p.section_str_pn, p.adsk_premise_number]).sum()
+                             .groupby(p.section_str_pn)[p.bru_premise_part_area_pn].sum()
+                             .rename('Площадь помещений кладовых, в том числе:'))
+
+        # Кол-во индивидуальных кладовых
+        pantries_indiv_area = (pantries[(pantries[p.section_str_pn].str.contains('паркинг', False) == False)]
+                               .groupby([p.section_str_pn, p.adsk_premise_number]).sum()
+                               .groupby(p.section_str_pn)[p.bru_premise_part_area_pn].sum()
+                               .rename('        - индивидуальных кладовых'))
+
+        # Кол-во кладовых паркинга
+        pantries_parking_area = (pantries[(pantries[p.section_str_pn].str.contains('паркинг', False) == True)]
+                                 .groupby([p.section_str_pn, p.adsk_premise_number]).sum()
+                                 .groupby(p.section_str_pn)[p.bru_premise_part_area_pn].sum()
+                                 .rename('        - кладовых паркинга'))
+        # endregion
+        # region Велосипедные
+        bicycles_area = (all_parts[(all_parts[p.type_pn] == 'МОП') & (
+                    all_parts[p.name_pn].str.contains('Велосипедная', False) == True)]
+                         .groupby(p.section_str_pn)[p.bru_premise_part_area_pn].sum().rename(
+            'Площадь мест хранения - велосипедные'))
+
+        # endregion
+
+        # endregion
+        # region Площадь машино-мест
+
+        cars_area = (
+            all_parts[all_parts[p.type_pn] == 'Машино-место'].groupby(p.section_str_pn)[p.bru_premise_part_area_pn]
+            .sum().rename('Площадь машино-мест'))
+
+        # endregion
+        # region Кол-во мест общего пользования
+
+        # МОП секции
+        common_sect_count = ((all_parts[(all_parts[p.type_pn] == 'МОП')
+                                        & (all_parts[p.section_str_pn].str.contains('паркинг', False) == False)])
+                             .groupby(p.section_str_pn).size().rename('МОП секции'))
+        # МОП паркинга
+        common_parking_count = ((all_parts[(all_parts[p.type_pn] == 'МОП')
+                                           & (all_parts[p.section_str_pn].str.contains('паркинг', False) == True)])
+                                .groupby(p.section_str_pn).size().rename('МОП паркинга, в том числе'))
+        # Автостоянка
+        park_names = ['Автостоянка'
+            , 'Рампа'
+            , 'Въездная-выездная полоса']
+        commop_parking_park_count = (all_parts[all_parts[p.name_pn].isin(park_names)].groupby(p.section_str_pn).size()
+                                     .rename('МОП автостоянки, включая рампу'))
+
+        # endregion
+        # region Площадь мест общего пользования
+
+        # МОП секции
+        common_sect_area = ((all_parts[(all_parts[p.type_pn] == 'МОП')
+                                       & (all_parts[p.section_str_pn].str.contains('паркинг', False) == False)])
+                            .groupby(p.section_str_pn)[p.bru_premise_part_area_pn].sum().rename('Площадь МОП секции'))
+        # МОП паркинга
+        common_parking_area = ((all_parts[(all_parts[p.type_pn] == 'МОП')
+                                          & (all_parts[p.section_str_pn].str.contains('паркинг', False) == True)])
+                               .groupby(p.section_str_pn)[p.bru_premise_part_area_pn].sum().rename('Площадь'))
+        common_parking_area = pd.concat([common_parking_area, cars_area], axis=1)
+        common_parking_area['Площадь МОП паркинга, в том числе:'] = np.where(
+            common_parking_area['Площадь'] - common_parking_area['Площадь машино-мест'] > 0
+            , common_parking_area['Площадь'] - common_parking_area['Площадь машино-мест'], 0)
+        common_parking_area = common_parking_area['Площадь МОП паркинга, в том числе:']
+
+        # Автостоянка
+        commop_parking_park_area = (
+            all_parts[all_parts[p.name_pn].isin(park_names)].groupby(p.section_str_pn)[p.bru_premise_part_area_pn].sum()
+            .rename('Площадь'))
+        commop_parking_park_area = pd.concat([commop_parking_park_area, cars_area], axis=1)
+        commop_parking_park_area['Площадь автостоянки, включая рампу'] = np.where(
+            commop_parking_park_area['Площадь'] - commop_parking_park_area['Площадь машино-мест'] > 0
+            , commop_parking_park_area['Площадь'] - commop_parking_park_area['Площадь машино-мест'], 0)
+        commop_parking_park_area = commop_parking_park_area['Площадь автостоянки, включая рампу']
+
+        # endregion
+        # region Технические помещения
+
+        tech_count = all_parts[all_parts[p.bru_destination_pn] == 'Техническое'].groupby(
+            p.section_str_pn).size().rename('Кол-во технических помещений')
+        tech_area = (all_parts[all_parts[p.bru_destination_pn] == 'Техническое'].groupby(p.section_str_pn)[
+                         p.bru_premise_part_area_pn]
+                     .sum().rename('Площадь технических помещений'))
+
+        # endregion
+
+        sections = all_parts.dropna(subset=[p.section_str_pn]).sort_values(p.section_str_pn, ascending=True)[
+            p.section_str_pn].unique()
+        df_tep = pd.DataFrame(index=sections)
+        values = [below_zero_floors
+            , floors_count
+            , under_zero_floors
+            , flats_count
+            , all_one_room_flats_count
+            , one_room_flats_count
+            , zero_room_flats_count
+            , one_free_room_flats_count
+            , one_duplex_room_flats_count
+            , all_two_room_flats_count
+            , two_room_flats_count
+            , two_duplex_room_flats_count
+            , two_free_room_flats_count
+            , all_three_room_flats_count
+            , three_room_flats_count
+            , three_duplex_room_flats_count
+            , three_free_room_flats_count
+            , all_four_room_flats_count
+            , four_room_flats_count
+            , four_duplex_room_flats_count
+            , four_free_room_flats_count
+            , living_flat_area_full
+            , no_summer_flat_area_full
+            , koef_flat_area_full
+            , no_koef_flat_area_full
+            , retail_count
+            , retail_MC
+            , pantries_all
+            , pantries_indiv
+            , pantries_parking
+            , bicycles_count
+            , cars_count
+            , retail_area
+            , retail_MC_area
+            , pantries_all_area
+            , pantries_indiv_area
+            , pantries_parking_area
+            , bicycles_area
+            , cars_area
+            , common_sect_count
+            , common_parking_count
+            , commop_parking_park_count
+            , common_sect_area
+            , common_parking_area
+            , commop_parking_park_area
+            , tech_count
+            , tech_area]
+        for df_value in values:
+            df_tep = pd.concat(objs=[df_tep, df_value], axis=1)
+        df_tep = df_tep.transpose()
+        df_tep = df_tep.rename_axis('Наименование показателя', axis='columns')
+
+        df_tep['Итого по объекту'] = df_tep.sum(axis=1)
+        return df_tep

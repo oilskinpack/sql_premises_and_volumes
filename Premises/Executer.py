@@ -1,12 +1,8 @@
 import os
-from itertools import groupby
-from operator import index
 
 import numpy as np
 import pandas as pd
-from pandas.core.interchange.dataframe_protocol import DataFrame
-from scipy.constants import value
-from sqlalchemy.dialects.mssql.information_schema import columns
+
 
 from Helpers.DbConnector import DbConnector
 from Helpers.PremiseHelper import PremiseHelper
@@ -46,8 +42,8 @@ else:
 
 
 premHel = PremiseHelper(full_path)
-params_arr = p.retail_elev_list
-res = premHel.getConstrObjParameters()
+res = premHel.technical_economic_values()
+
 
 
 print(res)
