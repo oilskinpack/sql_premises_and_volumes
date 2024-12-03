@@ -13,6 +13,7 @@ class ParamsAndFuns:
     type_pn = 'Вид помещения'
     bru_category_pn = 'Категория'
     adsk_premise_number = 'Номер квартиры'
+    adsk_premise_part_number = 'Номер помещения квартиры'
     premise_part_number = 'Номер части помещения'
     section_str_pn = 'Номер секции'
     bru_section_int_pn = 'Секция число'
@@ -24,6 +25,9 @@ class ParamsAndFuns:
     #Типы
     adsk_type_pn = 'Тип квартиры'
     bru_type_pn = 'BRU_Тип квартиры'
+
+    #Кол-во комнат
+    rooms_count = 'Количество комнат'
 
     #Площади
     bru_premise_part_area_pn = 'Площадь помещения'
