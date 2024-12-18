@@ -456,18 +456,32 @@ class PremiseHelper:
     
     def sfa_and_gfa_areas(self):
         all_parts = self.fullDf.apply(p.convert_to_double)
-        sfa_parking = self.getSellArea('Паркинг', True)
-        sfa_house = (self.getSellArea('Жилье', True)
-                     + self.getSellArea('Ритейл', True)
-                     + self.getSellArea('Кладовки', True))
-        gfa_parking = all_parts[(all_parts[p.section_str_pn].str.contains('паркинг', False) == True)
-                                & ((all_parts[p.type_pn] == 'МОП') | (all_parts[p.type_pn] == 'Технические помещения'))] \
-            [p.bru_premise_part_area_pn].sum()
+        pantries = self.getDfOfSellPremisesByDest("Кладовки").apply(p.convert_to_double)
+        #region Расчет SFA
+        sfa_parking = (self.getSellArea('Паркинг', True)
+                       + (pantries[pantries[p.section_str_pn].str.contains("Паркинг",False) == True][p.bru_premise_part_area_pn].sum()))
+        sfa_house = (pantries[pantries[p.section_str_pn].str.contains("Паркинг",False) == False][p.bru_premise_part_area_pn].sum()
+                     + self.getSellArea("Ритейл",True)
+                     + self.getSellArea("Жилье",True))
+        #endregion
+        #region Расчет GFA
+        gfa_parking = (all_parts[(all_parts[p.section_str_pn].str.contains('паркинг',False) == True) & (all_parts[p.type_pn] == 'МОП')][p.bru_premise_part_area_pn].sum()
+                       + all_parts[(all_parts[p.section_str_pn].str.contains('паркинг',False) == True) & (all_parts[p.type_pn] == 'Технические помещения')][p.bru_premise_part_area_pn].sum())
 
-        gfa_house = all_parts[(all_parts[p.section_str_pn].str.contains('паркинг', False) == False)
-                              & (all_parts[p.type_pn] != 'ГНС')
-                              & (all_parts[p.type_pn] != 'Машино-место')][p.bru_premise_part_area_pn].sum()
+        common_house = \
+        all_parts[(all_parts[p.section_str_pn].str.contains('паркинг', False) == False) & (all_parts[p.type_pn] == 'МОП')][
+            p.bru_premise_part_area_pn].sum()
+        tech_house = all_parts[(all_parts[p.section_str_pn].str.contains('паркинг', False) == False) & (
+                    all_parts[p.type_pn] == 'Технические помещения')][p.bru_premise_part_area_pn].sum()
+        pantries_house_area = pantries[pantries[p.section_str_pn].str.contains("Паркинг", False) == False][
+            p.bru_premise_part_area_pn].sum()
+        retail_area = self.getSellArea("Ритейл", True)
+        flats_area = self.getSellArea("Жилье", True)
 
+        gfa_house = common_house + tech_house + flats_area + retail_area + pantries_house_area
+
+
+        #endregion
         gfa_sfa_df = pd.DataFrame(columns=['Площадь, м2']
                                   , data=[sfa_house, gfa_house, sfa_parking, gfa_parking]
                                   , index=['SFA дом', 'GFA дом', 'SFA паркинг', 'GFA паркинг'])

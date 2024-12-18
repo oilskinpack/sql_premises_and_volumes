@@ -88,6 +88,7 @@ class DbConnector():
         #  13  archived_by     35 non-null     object
         myQuery = 'SELECT * FROM bim.models'
         dfModels = pd.read_sql_query(myQuery, con=self.engine)
+        dfModels = dfModels[dfModels['is_archived'] != True]
 
         # Модель + стадия модели
         dfFull = pd.merge(left=dfFull, right=dfModels, how='left', on='model_stage_id')

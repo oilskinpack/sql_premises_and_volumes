@@ -15,11 +15,11 @@ import re
 
 p.set_np_pd_opts()
 res = ''
-
 #region Параметры подключения
 need_load_full = True
-need_save_info = False
+need_save_info = True
 
+param_name = 'Объем, м3'
 host = ai.Host
 database = ai.Database
 user = ai.User
@@ -33,6 +33,7 @@ load_name = ai.load_name_volumes
 sk_arr = ai.sk_arr
 
 #endregion
+
 #region Получение датафрейма
 
 #Если есть датафрейм
@@ -52,8 +53,8 @@ else:
 #endregion
 #region Получение эталонов
 # Создаем экземпляр для выгрузки из БД
-standarts_dict = volHel.get_standarts(dfFull=dfFull,sk_arr= sk_arr,param_name='Объем, м3')
-deviation_dict = volHel.get_df_arr_sk_dev(dfFull= dfFull,sk_arr= sk_arr, param_name='Объем, м3', co_df_info=co_df_info)
+standarts_dict = volHel.get_standarts(dfFull=dfFull,sk_arr= sk_arr,param_name=param_name)
+deviation_dict = volHel.get_df_arr_sk_dev(dfFull= dfFull,sk_arr= sk_arr, param_name=param_name, co_df_info=co_df_info)
 
 #Сохранение
 if(need_save_info):
@@ -62,14 +63,15 @@ if(need_save_info):
     volHel.save_boxplotes_for_morph_and_floor_types(sk_arr=sk_arr
                                                         ,df_full=dfFull
                                                         ,pref_name=ai.sk_short_info
-                                                        ,dir=ai.plots_dir_volumes)
-    export_df = dfFull[['Имя СК', 'Материал', 'Наименование', 'Объем, м3', 'Оси'
+                                                        ,dir=ai.plots_dir_volumes,param_name=param_name)
+    export_df = dfFull[['Имя СК', 'Материал', 'Наименование', param_name, 'Оси'
         , 'Толщина', 'Формат', 'Секция', 'Этаж', 'version_index', 'name', 'Морфотип секции', 'Тип этажа']]
     export_df.to_excel(ai.file_dir_volumes + fr'\{ai.sk_short_info}.xlsx', sheet_name=ai.short_name_prem, index=False)
 
 
 #endregion
 
+res = dfFull
 
 
 # plt.show()

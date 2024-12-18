@@ -19,7 +19,7 @@ class VolumesHelper:
         fullDf = pd.read_csv(fullPath, sep=';')
         self.fullDf = fullDf.apply(p.convert_to_double)
 
-    def save_boxplotes_for_morph_and_floor_types(self,sk_arr,df_full,pref_name,dir):
+    def save_boxplotes_for_morph_and_floor_types(self,sk_arr,df_full,pref_name,dir,param_name):
         """
         Метод для сохранения swarmplot графиков по всем СК, всем морфотипам и этажам
         Parameters
@@ -41,11 +41,11 @@ class VolumesHelper:
         for sk in sk_arr:
             one_sk_df = df_full[df_full['Имя СК'] == sk]
             volumes_df = one_sk_df.groupby(['Морфотип секции','Секция','construction_object_id', 'Этаж', 'Тип этажа']).sum(numeric_only=True)[
-                'Объем, м3'].reset_index()
+                param_name].reset_index()
             all_morp = volumes_df['Морфотип секции'].unique()
             for morph in all_morp:
                 one_morp_df = volumes_df[volumes_df['Морфотип секции'] == morph]
-                sns.swarmplot(data=one_morp_df, y='Объем, м3', x='Тип этажа', palette='Set1', legend=False,size=4)
+                sns.swarmplot(data=one_morp_df, y=param_name, x='Тип этажа', palette='Set1', legend=False,size=4)
                 plt.title(f'{morph} {sk}')
                 morph_name = morph
                 if(('<' in morph_name)or('>' in morph_name)):
@@ -110,7 +110,7 @@ class VolumesHelper:
             divs_df['Дельта, %'] = abs((divs_df[param_name] - divs_df['Эталон']) / divs_df['Эталон'] * 100)
             divs_df = pd.merge(left=divs_df,right=co_df_info,how='left',on='construction_object_id')
             divs_df = divs_df[['Морфотип секции','construction_object_id','name','Секция','Этаж','Тип этажа'
-                ,'Объем, м3','Эталон','Дельта, %']]
+                ,param_name,'Эталон','Дельта, %']]
 
             df_arr[sk] = divs_df
         return  df_arr

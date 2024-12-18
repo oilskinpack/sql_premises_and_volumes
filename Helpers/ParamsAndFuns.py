@@ -19,7 +19,7 @@ class ParamsAndFuns:
     bru_section_int_pn = 'Секция число'
     bru_floor_int_pn = 'Этаж'
     adsk_index_int_pn = 'Индекс квартиры'
-    adsk_position_int_pn = 'ADSK_Позиция'
+    adsk_position_int_pn = 'Позиция'
     bru_premise_number_pn = 'Номер помещения'
 
     #Типы
