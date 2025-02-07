@@ -1,90 +1,17 @@
-import os
-import time
-from datetime import datetime
 import seaborn as sns
 from Access.AccessInfo import AccessInfo as ai
-from sqlalchemy.dialects.mssql.information_schema import columns
 from Helpers.ParamsAndFuns import ParamsAndFuns as p
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from Helpers.DbConnector import DbConnector
 from Helpers.VolumesHelper import VolumesHelper
-import re
-
-
 p.set_np_pd_opts()
-res = ''
-#region Параметры подключения
-need_load_full = True
-need_save_standarts_and_plts = False
 
 
-host = ai.Host
-database = ai.Database
-user = ai.User
-password = ai.Password
-co_df_info = ai.co_df_info
-# modelType = 'volumes'
-file_dir = ai.file_dir_volumes
-plots_dir = ai.plots_dir_volumes
-save_name = ai.save_name_volumes
-load_name = ai.load_name_volumes
-# sk_arr = ai.sk_arr
-sk_df = ai.sk_df
+source_path = r'D:\Khabarov\Репозиторий\sql_premises_and_volumes\SourceData\ИсходныеДанные.xlsx' #Здесь укажи путь к табл
+dbCon = DbConnector()
+dfFull = dbCon.get_volumes_df(source_path=source_path)
+volHel = VolumesHelper(dfFull)
 
-#endregion
-
-#region Получение датафрейма
-
-#Если есть датафрейм
-if need_load_full:
-    volHel = VolumesHelper(file_dir + load_name)
-    dfFull = volHel.fullDf
-#Если получаем впервые выгрузку из БД
-else:
-    # Создаем экземпляр для выгрузки из БД
-    dbCon = DbConnector(host, user, password, database)
-    # Подгружаем датафрейм по помещениям и сохраням
-    dfFull = dbCon.get_volumes_df(co_df_info= co_df_info,sk_df=sk_df)
-    dfFull.to_csv(file_dir + save_name, sep=';', index_label=False)
-    volHel = VolumesHelper(file_dir + save_name)
-    dfFull = volHel.fullDf
-    p.save_log(volHel.fullDf, ai.sk_short_info, ai.file_dir_volumes)
-#endregion
-#region Получение эталонов
-# Создаем экземпляр для выгрузки из БД
-#Сохранение
-if(need_save_standarts_and_plts):
-    standarts_dict = volHel.get_standarts(dfFull=dfFull, sk_df=sk_df)
-    deviation_dict = volHel.get_df_arr_sk_dev(dfFull=dfFull, sk_df=sk_df, co_df_info=co_df_info)
-    volHel.save_standarts(standarts_df_dict=standarts_dict,sk_df=sk_df, dir=ai.file_dir_volumes,pref=f'Эталоны')
-    volHel.save_standarts(standarts_df_dict=deviation_dict,sk_df=sk_df, dir=ai.file_dir_volumes,pref=f'Отклонения')
-    volHel.save_boxplotes_for_morph_and_floor_types(sk_df = sk_df
-                                                        ,df_full=dfFull
-                                                        ,pref_name=ai.sk_short_info
-                                                        ,dir=ai.plots_dir_volumes)
-    export_df = dfFull
-    # export_df = dfFull[['Имя СК', 'Материал', 'Наименование', param_name, 'Оси'
-    #     , 'Толщина', 'Формат', 'Секция', 'Этаж', 'version_index', 'name', 'Морфотип секции', 'Тип этажа']]
-    export_df.to_excel(ai.file_dir_volumes + fr'\{ai.sk_short_info}.xlsx', sheet_name=ai.short_name_prem, index=False)
-
-
-#endregion
-
-
-# ['model_version_element_id', 'Длина', 'Длина, мм', 'Имя СК',
-#  'Марка', 'Материал', 'Назначение', 'Наименование', 'Объем, м3',
-#  'Оси', 'Полная длина стержня, мм', 'Примечание', 'Принадлежность',
-#  'Секция', 'Тип бетона', 'Толщина', 'Ширина', 'Этаж', 'calc_id', 'name',
-#  'model_id', 'version_index', 'construction_object_id',
-#        'construction_object_section_id', 'Морфотип секции', 'Секция паркинг', 'Тип этажа', 'Этаж паркинга'],
-
-dfFull = pd.merge(left=dfFull,right=co_df_info,how='left',on='construction_object_id')
-
-
-
-
-# plt.show()
-print(res)
 

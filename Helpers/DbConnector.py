@@ -3,10 +3,11 @@ import pandas as pd
 from sqlalchemy import create_engine
 from Helpers.ParamsAndFuns import ParamsAndFuns as p
 import time
+from Access.AccessInfo import AccessInfo as ai
 
 
 class DbConnector():
-    def __init__(self,host,user,password,database):
+    def __init__(self):
         '''
         Класс для создания экземпляра подключения к БД и отправке запросов
         Parameters
@@ -20,6 +21,10 @@ class DbConnector():
         database : (str)
             Имя БД - "myDataBase"
         '''
+        host = ai.Host
+        database = ai.Database
+        user = ai.User
+        password = ai.Password
         self.engine = create_engine(f"postgresql://{user}:{password}@{host}/{database}")
         print('Подключено')
 
@@ -151,7 +156,7 @@ class DbConnector():
 
         return dfFull
 
-    def get_volumes_df(self,co_df_info,sk_df):
+    def get_volumes_df(self,source_path):
         """
         Метод для получения датафрейма по выбранным СК из БД
 
@@ -167,6 +172,15 @@ class DbConnector():
         pd.Dataframe
             Датафрейм со всеми экземплярами строительных конструкций по необходимым объектам, необходимой стадии
         """
+        try:
+            sk_df = pd.read_excel(source_path,
+                                  sheet_name='СК')
+            co_df_info = pd.read_excel(source_path,
+                                       sheet_name='Объекты')
+        except:
+            return print('Возникли проблемы с поиском/чтением исходных данных')
+
+
         dfFull = []
         df_calc_ids = []
         calc_ids_arr = []
@@ -246,6 +260,17 @@ class DbConnector():
 
         #Добавляем секции
         dfFull = self.add_section_info_to_df(co_df_info= co_df_info, df_full=dfFull)
+
+        #Добавляем инфу по стадиям
+        dfFull['construction_object_id'] = dfFull['construction_object_id'].astype(str)
+        dfFull = pd.merge(left=dfFull, right=co_df_info, how='left', on='construction_object_id')
+
+        #Наименование стадии и ОС
+        dfFull = dfFull.rename(columns={'name_x':'Наименование модели'
+                                        ,'name_y':'Наименование ОС'
+                                        ,'version_index':'Версия модели'})
+        #Конвертим
+        dfFull = dfFull.apply(p.convert_to_double)
 
         #Время
         fin_time = time.time()
@@ -410,9 +435,15 @@ class DbConnector():
         """
         # =====Распознавание=====
         # Параметры распознавания - берутся только нужные расчеты и нужные СК
-        sk_array = (tuple(sk_df['Имя СК'].array))
-        myQuery = f"SELECT * FROM calc.calcs_j_param_recognition WHERE calc_id IN {calc_ids_arr} AND value IN {str(sk_array)}"
-        df_calc_recogn_param = pd.read_sql_query(myQuery, con=self.engine)
+        sk_counter = len(sk_df)
+        if(sk_counter == 1):
+            sk_name = sk_df['Имя СК'].iloc[0]
+            myQuery = f"SELECT * FROM calc.calcs_j_param_recognition WHERE calc_id IN {calc_ids_arr} AND value = '{sk_name}'"
+            df_calc_recogn_param = pd.read_sql_query(myQuery, con=self.engine)
+        else:
+            sk_array = (tuple(sk_df['Имя СК'].array))
+            myQuery = f"SELECT * FROM calc.calcs_j_param_recognition WHERE calc_id IN {calc_ids_arr} AND value IN {str(sk_array)}"
+            df_calc_recogn_param = pd.read_sql_query(myQuery, con=self.engine)
         return df_calc_recogn_param
 
     def get_recogn_param_values(self,df_calc_recogn_params):
