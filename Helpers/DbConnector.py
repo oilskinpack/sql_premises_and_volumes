@@ -151,7 +151,7 @@ class DbConnector():
 
         return dfFull
 
-    def get_volumes_df(self,co_df_info,sk_arr):
+    def get_volumes_df(self,co_df_info,sk_df):
         """
         Метод для получения датафрейма по выбранным СК из БД
 
@@ -159,8 +159,8 @@ class DbConnector():
         ----------
         co_df_info : (pd.Dataframe)
             Датафрейм с колонками ["Название объекта",'Стадия','id']
-        sk_arr : (arr)
-            Список строительных конструкций
+        sk_df : pd.Dataframe
+            Датафрейм со списком СК и списком имен параметров, по которым будет сбор
 
         Returns
         -------
@@ -210,7 +210,7 @@ class DbConnector():
 
         # =====Распознавание=====
         # Параметры распознавания - берутся только нужные расчеты и нужные СК
-        df_recogn_param_values = self.get_calc_recogn_params(calc_ids_arr,sk_arr)
+        df_recogn_param_values = self.get_calc_recogn_params(calc_ids_arr,sk_df)
         if(len(df_recogn_param_values) == 0):
             print("Ни одна из запрошенных типов СК не найдена в текущих объектах текущей стадии")
             return np.nan
@@ -393,15 +393,15 @@ class DbConnector():
         df_calcs = pd.read_sql_query(myQuery, con=self.engine)
         return df_calcs
 
-    def get_calc_recogn_params(self,calc_ids_arr,sk_arr):
+    def get_calc_recogn_params(self,calc_ids_arr,sk_df):
         """
         Метод получения датафрейма с параметрами распознавания
         Parameters
         ----------
         calc_ids_arr : (str)
             Строковое перечисление айди расчета
-        sk_arr : []
-            Список СК
+        sk_df : pd.Dataframe
+            Датафрейм со списком СК и списком имен параметров, по которым будет сбор
 
         Returns
         -------
@@ -410,7 +410,8 @@ class DbConnector():
         """
         # =====Распознавание=====
         # Параметры распознавания - берутся только нужные расчеты и нужные СК
-        myQuery = f"SELECT * FROM calc.calcs_j_param_recognition WHERE calc_id IN {calc_ids_arr} AND value IN {str(sk_arr)}"
+        sk_array = (tuple(sk_df['Имя СК'].array))
+        myQuery = f"SELECT * FROM calc.calcs_j_param_recognition WHERE calc_id IN {calc_ids_arr} AND value IN {str(sk_array)}"
         df_calc_recogn_param = pd.read_sql_query(myQuery, con=self.engine)
         return df_calc_recogn_param
 
