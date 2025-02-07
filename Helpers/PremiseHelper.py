@@ -386,9 +386,23 @@ class PremiseHelper:
         flatsDf = self.getDfOfSellPremisesByDest('Жилье')
         flatsDf  = flatsDf [flatsDf [p.bru_premise_summer_area_pn] > 0]
         flatsWithSummerPremises = flatsDf[
-            [p.has_terrase_on_roof, p.has_terrase_on_floor, p.has_balcony, p.has_cold_loggia, p.has_warm_loggia,
+            [p.adsk_premise_number,p.has_terrase_on_roof, p.has_terrase_on_floor, p.has_balcony, p.has_cold_loggia, p.has_warm_loggia,
              p.bru_premise_summer_area_pn]]
         return flatsWithSummerPremises
+
+    def get_summer_areas(self):
+        '''
+        Получение суммы площадей ЛП по разным ЛП
+
+        Returns
+        -------
+        np.Series
+            Данные по площадям
+        '''
+        flats = self.getDfOfSellPremisesByDest('Жилье')
+        flats = flats[flats[p.name_pn].isin(['Балкон', 'Лоджия', 'Лоджия (холодная)', 'Терраса', 'Терраса на земле'])]
+        res = flats.groupby(p.name_pn).sum()[p.bru_premise_part_area_pn]
+        return  res
 
     def duplex_flats(self):
         '''
@@ -494,7 +508,8 @@ class PremiseHelper:
         retails = self.getDfOfSellPremisesByDest('Ритейл').apply(p.convert_to_double)
         pantries = self.getDfOfSellPremisesByDest('Кладовки').apply(p.convert_to_double)
 
-        development_area = gns.groupby(p.section_str_pn)[p.bru_premise_part_area_pn].sum()
+        development_area = (all_parts[(all_parts[p.bru_destination_pn] == 'ГНС') & (all_parts[p.bru_floor_int_pn].astype(float) == 1)]
+                .groupby(p.section_str_pn)[p.bru_premise_part_area_pn].sum()).rename('Площадь застройки по СП54.13330.2022')
         # region Этажи
         # Этажность
         below_zero_floors = all_parts.groupby(p.section_str_pn)[p.bru_floor_int_pn].max().rename('Этажность')
@@ -803,7 +818,8 @@ class PremiseHelper:
         sections = all_parts.dropna(subset=[p.section_str_pn]).sort_values(p.section_str_pn, ascending=True)[
             p.section_str_pn].unique()
         df_tep = pd.DataFrame(index=sections)
-        values = [below_zero_floors
+        values = [development_area
+            ,below_zero_floors
             , floors_count
             , under_zero_floors
             , flats_count

@@ -28,6 +28,7 @@ class ParamsAndFuns:
 
     #Кол-во комнат
     rooms_count = 'Количество комнат'
+    rooms_sale_count = 'Количество комнат для продаж'
 
     #Площади
     bru_premise_part_area_pn = 'Площадь помещения'

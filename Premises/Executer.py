@@ -1,5 +1,6 @@
 import os
 from operator import index
+from tokenize import group
 
 import numpy as np
 import pandas as pd
@@ -41,10 +42,6 @@ else:
 
 #endregion
 
-
 premHel = PremiseHelper(full_path)
-res = premHel.technical_economic_values()
-
-
 
 print(res)
