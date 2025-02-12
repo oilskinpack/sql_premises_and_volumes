@@ -88,7 +88,7 @@ class ParamsAndFuns:
         desired_width = 340
         pd.set_option('display.width', desired_width)
         np.set_printoptions(linewidth=desired_width)
-        pd.set_option('display.max_columns', 10)
+        pd.set_option('display.max_columns', 25)
 
     @staticmethod
     def convert_to_double(value):
