@@ -4,9 +4,19 @@ from sqlalchemy import create_engine
 from Helpers.ParamsAndFuns import ParamsAndFuns as p
 import time
 from Access.AccessInfo import AccessInfo as ai
+from Crypto.Cipher import AES
+import base64
+import os
+import hashlib
 
 
 class DbConnector():
+
+    host = 'Qs9hG8jzRzAaDkvobuaiwj1ptUx9kOu6oGa1u/73KuruaWI='
+    database = 'lsY9Ohe1sgXqHE1c8tCFqUgztDfuNi7WJw=='
+    user = "N5nBnAfyZOSKytNuXpH9BRIWwV3kl2+i610="
+    password = 'SQGLZV6dO/aaxN0UMlJuFU7AtQ9pOrw3KQvAOAOtIrg/Bemh6XGmv2OaiYg='
+
     def __init__(self):
         '''
         Класс для создания экземпляра подключения к БД и отправке запросов
@@ -21,12 +31,51 @@ class DbConnector():
         database : (str)
             Имя БД - "myDataBase"
         '''
-        host = ai.Host
-        database = ai.Database
-        user = ai.User
-        password = ai.Password
-        self.engine = create_engine(f"postgresql://{user}:{password}@{host}/{database}")
+        key = self.get_access_key()
+        access_data = self.get_db_access_data(key)
+        self.engine = create_engine(f"postgresql://{access_data[0]}:{access_data[1]}@{access_data[2]}/{access_data[3]}")
+        # self.engine = create_engine(f"postgresql://{user}:{password}@{host}/{database}")
         print('Подключено')
+
+    def get_access_key(self):
+        """
+        Получение кодовой фразы от пользователя
+        Returns
+        -------
+        key: (bytes)
+        Ключ
+        """
+        key_str = input("Введите кодовую фразу: ")
+        key = hashlib.sha256(key_str.encode()).digest()
+        return key
+
+    def get_db_access_data(self,key):
+        """
+        Расшифровка метода
+        Parameters
+        ----------
+        key : (str)
+            Ключ
+
+        Returns
+        -------
+        res : []
+            Пользовател, пароль, хост и бд
+        """
+        host = self.decrypt_acess_data(key,self.host)
+        database = self.decrypt_acess_data(key,self.database)
+        user = self.decrypt_acess_data(key,self.user)
+        password = self.decrypt_acess_data(key,self.password)
+        return [user,password,host,database]
+
+
+    def decrypt_acess_data(self,key,encrypted_data):
+        data = base64.b64decode(encrypted_data)  # Декодируем base64
+        nonce = data[:16]  # Первые 16 байт — это nonce
+        encrypted_data = data[16:]  # Остальное — зашифрованная строка
+        cipher = AES.new(key, AES.MODE_EAX, nonce=nonce)  # Создаем объект AES для расшифровки
+        return cipher.decrypt(encrypted_data).decode()
+
 
     def getFullDfPremise(self,coId,stage,modelType,version = 999):
         """
@@ -203,8 +252,12 @@ class DbConnector():
         proper_model_ids_str = self.get_model_ids_str(df_models)
 
         # Версии модели
-        myQuery = f"SELECT * FROM bim.model_versions WHERE model_id IN {proper_model_ids_str}"
-        dfModelVersions = pd.read_sql_query(myQuery, con=self.engine)
+        if (',' in proper_model_ids_str):
+            myQuery = f"SELECT * FROM bim.model_versions WHERE model_id IN {proper_model_ids_str}"
+            dfModelVersions = pd.read_sql_query(myQuery, con=self.engine)
+        else:
+            myQuery = f"SELECT * FROM bim.model_versions WHERE model_id = '{proper_model_ids_str}'"
+            dfModelVersions = pd.read_sql_query(myQuery, con=self.engine)
         # Версия + модель
         dfFull = pd.merge(left=df_models, right=dfModelVersions, how='left', on='model_id')
         #Список крайних версий по всем моделям
@@ -220,7 +273,11 @@ class DbConnector():
                               'created_at', 'recognized', 'elements_count', 'total_elements_count']]
         #Берем самую позднюю калькуляцию
         latest_calcs = df_calc_ids.groupby('model_version_id', group_keys=False).apply(lambda x: x.nlargest(1, "created_at"))
-        calc_ids_arr = str(tuple(latest_calcs.astype(str)['calc_id'].array))
+        if(len(latest_calcs) > 1):
+            calc_ids_arr = str(tuple(latest_calcs.astype(str)['calc_id'].array))
+        else:
+            calc_ids_arr = latest_calcs.astype(str)['calc_id'].iloc[0]
+
 
         # =====Распознавание=====
         # Параметры распознавания - берутся только нужные расчеты и нужные СК
@@ -342,8 +399,13 @@ class DbConnector():
         """
         # Модели
         # dfModels = self.get_models_versions_full_df(model_stage_id)
-        proper_model_id = df_models['model_id'].astype(str).array
-        proper_model_ids = str(tuple(proper_model_id))
+        models_count = len(df_models)
+        if(models_count > 1):
+            proper_model_id = df_models['model_id'].astype(str).array
+            proper_model_ids = str(tuple(proper_model_id))
+        else:
+            proper_model_id = df_models['model_id'].astype(str).iloc[0]
+            proper_model_ids = proper_model_id
         return proper_model_ids
 
     def get_models_versions_full_df(self,model_stage_id):
@@ -369,6 +431,7 @@ class DbConnector():
             # Модели
             myQuery = f"SELECT * FROM bim.models WHERE model_stage_id = '{model_stage_id}' AND model_type = 'volumes'"
             df_models = pd.read_sql_query(myQuery, con=self.engine)
+        df_models = df_models[df_models['is_archived'].isnull()]
         return df_models
 
     def get_last_versions(self,model_ids_str,models_version_full_df):
@@ -388,15 +451,23 @@ class DbConnector():
 
         """
         # Версии модели
-        myQuery = f"SELECT * FROM bim.model_versions WHERE model_id IN {model_ids_str}"
-        dfModelVersions = pd.read_sql_query(myQuery, con=self.engine)
+        if (',' in model_ids_str):
+            myQuery = f"SELECT * FROM bim.model_versions WHERE model_id IN {model_ids_str}"
+            dfModelVersions = pd.read_sql_query(myQuery, con=self.engine)
+        else:
+
+            myQuery = f"SELECT * FROM bim.model_versions WHERE model_id = '{model_ids_str}'"
+            dfModelVersions = pd.read_sql_query(myQuery, con=self.engine)
 
         # Версия + модель(Берется крайняя модель)
         dfFull = pd.merge(left=models_version_full_df, right=dfModelVersions, how='left', on='model_id')
         df_proper_model_versions = \
             dfFull.groupby('name', group_keys=False).apply(lambda x: x.nlargest(1, "version_index"))[
                 ['name','version_index', 'model_version_id']]
-        proper_model_versions_str = str(tuple(df_proper_model_versions.astype(str)['model_version_id'].array))
+        if(len(df_proper_model_versions) > 1):
+            proper_model_versions_str = str(tuple(df_proper_model_versions.astype(str)['model_version_id'].array))
+        else:
+            proper_model_versions_str = df_proper_model_versions.astype(str)['model_version_id'].iloc[0]
         return proper_model_versions_str
 
     def get_calcs_df_by_model_version_ids(self,model_versions):
@@ -414,8 +485,12 @@ class DbConnector():
 
         """
         # Айди расчета
-        myQuery = f"SELECT * FROM calc.calcs WHERE model_version_id IN {model_versions}"
-        df_calcs = pd.read_sql_query(myQuery, con=self.engine)
+        if(',' in model_versions):
+            myQuery = f"SELECT * FROM calc.calcs WHERE model_version_id IN {model_versions}"
+            df_calcs = pd.read_sql_query(myQuery, con=self.engine)
+        else:
+            myQuery = f"SELECT * FROM calc.calcs WHERE model_version_id = '{model_versions}'"
+            df_calcs = pd.read_sql_query(myQuery, con=self.engine)
         return df_calcs
 
     def get_calc_recogn_params(self,calc_ids_arr,sk_df):
@@ -436,13 +511,22 @@ class DbConnector():
         # =====Распознавание=====
         # Параметры распознавания - берутся только нужные расчеты и нужные СК
         sk_counter = len(sk_df)
-        if(sk_counter == 1):
+        sk_name_id = 'f8aea8d0-a17b-4c75-ba63-6afb634b69d4'
+        if(sk_counter == 1 and ',' in calc_ids_arr):
             sk_name = sk_df['Имя СК'].iloc[0]
-            myQuery = f"SELECT * FROM calc.calcs_j_param_recognition WHERE calc_id IN {calc_ids_arr} AND value = '{sk_name}'"
+            myQuery = f"SELECT * FROM calc.calcs_j_param_recognition WHERE calc_id IN {calc_ids_arr} AND value = '{sk_name}' AND recognition_id = '{sk_name_id}'"
+            df_calc_recogn_param = pd.read_sql_query(myQuery, con=self.engine)
+        elif(sk_counter > 1 and ',' in calc_ids_arr):
+            sk_array = (tuple(sk_df['Имя СК'].array))
+            myQuery = f"SELECT * FROM calc.calcs_j_param_recognition WHERE calc_id IN {calc_ids_arr} AND value IN {str(sk_array)} AND recognition_id = '{sk_name_id}'"
+            df_calc_recogn_param = pd.read_sql_query(myQuery, con=self.engine)
+        elif (sk_counter > 1):
+            sk_array = (tuple(sk_df['Имя СК'].array))
+            myQuery = f"SELECT * FROM calc.calcs_j_param_recognition WHERE calc_id = '{calc_ids_arr}' AND value IN {str(sk_array)} AND recognition_id = '{sk_name_id}'"
             df_calc_recogn_param = pd.read_sql_query(myQuery, con=self.engine)
         else:
-            sk_array = (tuple(sk_df['Имя СК'].array))
-            myQuery = f"SELECT * FROM calc.calcs_j_param_recognition WHERE calc_id IN {calc_ids_arr} AND value IN {str(sk_array)}"
+            sk_name = sk_df['Имя СК'].iloc[0]
+            myQuery = f"SELECT * FROM calc.calcs_j_param_recognition WHERE calc_id = '{calc_ids_arr}' AND value = '{sk_name}' AND recognition_id = '{sk_name_id}'"
             df_calc_recogn_param = pd.read_sql_query(myQuery, con=self.engine)
         return df_calc_recogn_param
 
@@ -486,9 +570,12 @@ class DbConnector():
         """
         # =====Стандартизация=====
         # Параметры стандартизации
-        myQuery = f"SELECT * FROM calc.calcs_j_param_standard WHERE calc_id IN {calc_ids_arr} AND model_version_element_id IN {all_model_vers_elem_ids}"
-        df_calc_standard_param = pd.read_sql_query(myQuery, con=self.engine)
-
+        if(',' in calc_ids_arr):
+            myQuery = f"SELECT * FROM calc.calcs_j_param_standard WHERE calc_id IN {calc_ids_arr} AND model_version_element_id IN {all_model_vers_elem_ids}"
+            df_calc_standard_param = pd.read_sql_query(myQuery, con=self.engine)
+        else:
+            myQuery = f"SELECT * FROM calc.calcs_j_param_standard WHERE calc_id = '{calc_ids_arr}' AND model_version_element_id IN {all_model_vers_elem_ids}"
+            df_calc_standard_param = pd.read_sql_query(myQuery, con=self.engine)
         # Названия параметров
         myQuery = f"SELECT * FROM param.standard"
         df_standard_ids = pd.read_sql_query(myQuery, con=self.engine)
@@ -516,8 +603,12 @@ class DbConnector():
         """
         # =====Расчет=====
         # Параметры расчета
-        myQuery = f"SELECT * FROM calc.calcs_j_param_calculation WHERE calc_id IN {calc_ids_arr} AND model_version_element_id IN {all_model_vers_elem_ids}"
-        df_calc_calculation_param = pd.read_sql_query(myQuery, con=self.engine)
+        if(',' in calc_ids_arr):
+            myQuery = f"SELECT * FROM calc.calcs_j_param_calculation WHERE calc_id IN {calc_ids_arr} AND model_version_element_id IN {all_model_vers_elem_ids}"
+            df_calc_calculation_param = pd.read_sql_query(myQuery, con=self.engine)
+        else:
+            myQuery = f"SELECT * FROM calc.calcs_j_param_calculation WHERE calc_id = '{calc_ids_arr}' AND model_version_element_id IN {all_model_vers_elem_ids}"
+            df_calc_calculation_param = pd.read_sql_query(myQuery, con=self.engine)
 
         # Названия параметров
         myQuery = f"SELECT * FROM param.calculation"
@@ -546,8 +637,12 @@ class DbConnector():
         """
         # =====Локация=====
         # Параметры расчета
-        myQuery = f"SELECT * FROM calc.calcs_j_param_location WHERE calc_id IN {calc_ids_arr} AND model_version_element_id IN {all_model_vers_elem_ids}"
-        df_calc_location_param = pd.read_sql_query(myQuery, con=self.engine)
+        if(',' in calc_ids_arr):
+            myQuery = f"SELECT * FROM calc.calcs_j_param_location WHERE calc_id IN {calc_ids_arr} AND model_version_element_id IN {all_model_vers_elem_ids}"
+            df_calc_location_param = pd.read_sql_query(myQuery, con=self.engine)
+        else:
+            myQuery = f"SELECT * FROM calc.calcs_j_param_location WHERE calc_id = '{calc_ids_arr}' AND model_version_element_id IN {all_model_vers_elem_ids}"
+            df_calc_location_param = pd.read_sql_query(myQuery, con=self.engine)
 
         # Названия параметров
         myQuery = f"SELECT * FROM param.location"

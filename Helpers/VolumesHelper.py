@@ -1,14 +1,13 @@
 import os
-
 import pandas as pd
 from Helpers.ParamsAndFuns import ParamsAndFuns as p
 import seaborn as sns
 import matplotlib.pyplot as plt
-from Access.AccessInfo import AccessInfo as ai
+from Helpers.DbConnector import DbConnector
 
 
 class VolumesHelper:
-    def __init__(self,fullDf):
+    def __init__(self,source_path):
         """
         Класс для загрузки датафрейма и работы с ним
 
@@ -19,7 +18,12 @@ class VolumesHelper:
         """
         # Конвертация данных
         # fullDf = pd.read_csv(fullPath, sep=';')
-        self.fullDf = fullDf
+        dbCon = DbConnector()
+        dfFull = dbCon.get_volumes_df(source_path=source_path)
+        dfFull.loc[:, dfFull.select_dtypes(include=['float']).columns] = dfFull.select_dtypes(include=['float']).fillna(
+            0)
+        dfFull.loc[:, dfFull.select_dtypes(include=['object']).columns] = dfFull.select_dtypes(include=['object']).fillna(0)
+        self.fullDf = dfFull
 
     def save_boxplotes_for_morph_and_floor_types(self,sk_df,df_full,dir):
         """
@@ -216,6 +220,57 @@ class VolumesHelper:
                                                         , dir=dir)
         # export_df = dfFull
         # export_df.to_excel(ai.file_dir_volumes + fr'\{ai.sk_short_info}.xlsx', sheet_name=ai.short_name_prem, index=False)
+
+    def save_nomenclature(self,source_path, directory):
+        """
+        Метод выгружает номенклатуру изделий по всем заданным объектам, заданным СК по параметрам группирования
+        Parameters
+        ----------
+        source_path : (str)
+            Путь до файла ИсходныеДанные по типу r'D:\Khabarov\Репозиторий\sql_premises_and_volumes\SourceData\test.csv'
+        directory : (str)
+            Путь до папки по типу r'D:\Khabarov\Репозиторий\sql_premises_and_volumes\Data'
+
+        Returns : None
+            Сохраняет эксель файлы с номенклатурой по заданному пути
+        -------
+
+        """
+        dfFull = self.fullDf
+        dfFull['Количество'] = 1
+        sk_df = pd.read_excel(source_path,sheet_name='СК')
+        for ind in range(0, len(sk_df)):
+            # Сборка параметров для группировки
+            group_arr = ['Наименование ОС', 'Стадия', 'Имя СК']
+            group_param_str = sk_df['Параметры для группирования'].iloc[ind].replace(', ', ',')
+            group_param_arr = group_param_str.split(',')
+            group_arr = group_arr + group_param_arr
+
+            # Параметры для суммирования и имя СК
+            agg_name = sk_df['Имя параметра'].iloc[ind]
+            sk_name = sk_df['Имя СК'].iloc[ind]
+
+            # Cбор колонок в массив и удаление лишнего
+            all_col = list(group_arr)
+            all_col.append(agg_name)
+            short_df = dfFull[all_col]
+
+            # Заполнение пустых значений
+            short_df.loc[:, group_arr] = short_df[group_arr].fillna('Не заполнено')
+            short_df.loc[:, agg_name] = short_df[agg_name].fillna(0)
+
+            # Фильтрация
+            short_df = short_df[short_df['Имя СК'] == sk_name]
+
+            # Группировка
+            final_res = short_df.groupby(group_arr)[agg_name].agg(["sum", "count"]).reset_index()
+            final_res.rename(columns={'sum': f'{agg_name}', 'count': 'Кол-во'}, inplace=True)
+
+            if(agg_name == 'Количество'):
+                final_res = final_res.drop('Количество',axis = 1)
+
+            path = directory + fr'\Номенклатура_{sk_name}.xlsx'
+            final_res.to_excel(path, sheet_name=f'{sk_name}', index=False)
 
 
 
