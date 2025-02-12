@@ -1,8 +1,11 @@
 import os
-from itertools import groupby
+from operator import index
+from tokenize import group
 
 import numpy as np
 import pandas as pd
+
+
 from Helpers.DbConnector import DbConnector
 from Helpers.PremiseHelper import PremiseHelper
 from Helpers.ParamsAndFuns import ParamsAndFuns as p
@@ -39,12 +42,6 @@ else:
 
 #endregion
 
-
 premHel = PremiseHelper(full_path)
-# res = premHel.getDfOfSellPremisesByDest('Ритейл')
-# res = str(res[res[p.NamePN].str.contains('КУИ+',False) == True].reset_index().iloc[0][p.NamePN])
-res = premHel.getDfOfSellPremisesByDest('Кладовки')
-res = res.groupby([p.NamePN]).sum()[p.BruPremisePartAreaPN]
-
 
 print(res)
