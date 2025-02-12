@@ -8,8 +8,8 @@ __pycache__/
 
 # RevitModels
 *.rvt
-Access/
 Data/
+Access/
 Plots/
 SourceData/
 
