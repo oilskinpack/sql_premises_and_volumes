@@ -873,3 +873,80 @@ class PremiseHelper:
 
         df_tep['Итого по объекту'] = df_tep.sum(axis=1)
         return df_tep
+
+    def get_comparing_df_crm_bim(self,crm_path,how):
+        # Загрузка данных из СРМ
+        crm_df = pd.read_excel(crm_path, sheet_name='Лист1')
+
+        # Удаляем заголовок с названием объекта
+        col_names = ['Наименование'
+            , 'Вид помещения'
+                     # ,'Блок-секция'
+                     # ,'Этаж'
+                     # ,'Номер на площадке'
+            , 'Блок-секция'
+            , 'Этаж'
+            , 'Номер на площадке'
+            , 'Количество комнат'
+            , 'Площадь общая'
+            , 'Площадь без балкона'
+            , 'Площадь балкона'
+            , 'Площадь лоджии'
+            , 'Площадь террасы'
+            , 'Тип квартиры'
+            , '(БА) Типология']
+        crm_df = crm_df.drop(0, axis=0)
+        crm_df = crm_df.dropna(axis=0, subset=['Код'])
+        crm_df = crm_df[col_names]
+        crm_df['Номер помещения'] = crm_df['Наименование'].str.extract(r"-(.*)")
+
+        flats = self.getDfOfSellPremisesByDest('Жилье')
+        rets = self.getDfOfSellPremisesByDest('Ритейл')
+        pants = self.getDfOfSellPremisesByDest('Кладовки')
+        parks = self.getDfOfSellPremisesByDest('Паркинг')
+
+        bd_df = pd.concat([flats, rets], sort=False, axis=0)
+        bd_df = pd.concat([bd_df, pants], sort=False, axis=0)
+        bd_df = pd.concat([bd_df, parks], sort=False, axis=0)
+
+        bd_df = bd_df.groupby('Номер помещения').apply(lambda x: x.nlargest(1, p.bru_premise_full_area_pn))
+        bd_df = bd_df.rename(columns={'Площадь квартиры без коэффициентов': 'Площадь общая'
+            , "Площадь без летних помещений": "Площадь без балкона"
+            , 'Тип квартиры': '(БА) Типология'
+            , 'BRU_Тип квартиры': 'Тип квартиры'
+            , 'Секция число': 'Блок-секция'
+            , 'Индекс квартиры': 'Номер на площадке'})
+        bd_df['Площадь лоджии'] = bd_df['Площадь теплой лоджии'] + bd_df['Площадь холодной лоджии']
+        bd_df['Этаж'] = bd_df[p.adsk_premise_number].str.split('.').str[1]
+
+        # Для машиномест
+        bd_df['Площадь общая'] = np.where(bd_df['Вид помещения'] == 'Машино-место', bd_df['Площадь помещения'],
+                                          bd_df['Площадь общая'])
+        bd_df['Номер на площадке'] = np.where(bd_df['Вид помещения'] == 'Машино-место', bd_df['Позиция'],
+                                              bd_df['Номер на площадке'])
+
+        # Переназначаем вид
+        bd_df['Вид помещения'] = np.where(bd_df['Назначение'] == 'Жилье', 'Квартира', bd_df['Вид помещения'])
+        bd_df['Вид помещения'] = np.where(bd_df['Назначение'] == 'Кладовки', 'Кладовая', bd_df['Вид помещения'])
+        bd_df['Вид помещения'] = np.where(bd_df['Назначение'] == 'Паркинг', 'Паркинг', bd_df['Вид помещения'])
+        bd_df['Вид помещения'] = np.where(bd_df['Назначение'] == 'Ритейл', 'Офис', bd_df['Вид помещения'])
+
+        # Приводим к одному виду и типу
+        col_names.remove('Наименование')
+        col_names.append('Номер помещения')
+        bd_df = bd_df[col_names]
+        bd_df = bd_df.apply(p.convert_to_double)
+
+        # Сопоставление
+        # comp_df = pd.merge(left=crm_df,right=bd_df,how='left',on='Номер помещения',suffixes=('_CRM','_BIM'))
+        comp_df = pd.merge(left=crm_df, right=bd_df, how=how,
+                           on=['Вид помещения', 'Блок-секция', 'Этаж', 'Номер на площадке'], suffixes=('_CRM', '_BIM'))
+        comp_df = comp_df.fillna(0)
+        comp_df['Площадь общая_Δ'] = comp_df['Площадь общая_CRM'] - comp_df['Площадь общая_BIM']
+        comp_df['Площадь без балкона_Δ'] = comp_df['Площадь без балкона_CRM'] - comp_df['Площадь без балкона_BIM']
+        comp_df['Площадь балкона_Δ'] = comp_df['Площадь балкона_CRM'] - comp_df['Площадь балкона_BIM']
+        comp_df['Площадь лоджии_Δ'] = comp_df['Площадь лоджии_CRM'] - comp_df['Площадь лоджии_BIM']
+        comp_df['Площадь террасы_Δ'] = comp_df['Площадь террасы_CRM'] - comp_df['Площадь террасы_BIM']
+        comp_df = comp_df[['Номер помещения_CRM', 'Номер помещения_BIM', 'Вид помещения'
+            , 'Площадь общая_CRM', 'Площадь общая_BIM', 'Площадь общая_Δ']]
+        return comp_df
