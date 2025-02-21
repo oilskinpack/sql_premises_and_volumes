@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from Helpers.ParamsAndFuns import ParamsAndFuns as p
 import time
 from Access.AccessInfo import AccessInfo as ai
-from Crypto.Cipher import AES
+from Cryptodome.Cipher import AES
 import base64
 import os
 import hashlib
@@ -223,9 +223,9 @@ class DbConnector():
         """
         try:
             sk_df = pd.read_excel(source_path,
-                                  sheet_name='СК')
+                                  sheet_name='СК')[['Имя СК','Имя параметра','Параметры для группирования']].dropna(axis=0)
             co_df_info = pd.read_excel(source_path,
-                                       sheet_name='Объекты')
+                                       sheet_name='Объекты')[['name','Стадия','construction_object_id']].dropna(axis=0)
         except:
             return print('Возникли проблемы с поиском/чтением исходных данных')
 

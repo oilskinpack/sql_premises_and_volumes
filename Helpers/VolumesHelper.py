@@ -1,4 +1,6 @@
 import os
+
+import numpy as np
 import pandas as pd
 from Helpers.ParamsAndFuns import ParamsAndFuns as p
 import seaborn as sns
@@ -20,6 +22,9 @@ class VolumesHelper:
         # fullDf = pd.read_csv(fullPath, sep=';')
         dbCon = DbConnector()
         dfFull = dbCon.get_volumes_df(source_path=source_path)
+        if(dfFull is np.nan):
+            dfFull = pd.DataFrame()
+
         dfFull.loc[:, dfFull.select_dtypes(include=['float']).columns] = dfFull.select_dtypes(include=['float']).fillna(
             0)
         dfFull.loc[:, dfFull.select_dtypes(include=['object']).columns] = dfFull.select_dtypes(include=['object']).fillna(0)
