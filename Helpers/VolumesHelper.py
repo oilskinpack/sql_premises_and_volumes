@@ -22,12 +22,13 @@ class VolumesHelper:
         # fullDf = pd.read_csv(fullPath, sep=';')
         dbCon = DbConnector()
         dfFull = dbCon.get_volumes_df(source_path=source_path)
+        self.releases_df = dbCon.get_releases_df_info(source_path=source_path)
         if(dfFull is np.nan):
             dfFull = pd.DataFrame()
 
-        dfFull.loc[:, dfFull.select_dtypes(include=['float']).columns] = dfFull.select_dtypes(include=['float']).fillna(
-            0)
-        dfFull.loc[:, dfFull.select_dtypes(include=['object']).columns] = dfFull.select_dtypes(include=['object']).fillna(0)
+        #Заполнение пустых значений
+        dfFull.loc[:, dfFull.select_dtypes(include=['float']).columns] = dfFull.select_dtypes(include=['float']).fillna(0)
+        dfFull.loc[:, dfFull.select_dtypes(include=['object']).columns] = dfFull.select_dtypes(include=['object']).fillna("Не заполнено")
         self.fullDf = dfFull
 
     def save_boxplotes_for_morph_and_floor_types(self,sk_df,df_full,dir):
@@ -270,12 +271,17 @@ class VolumesHelper:
             # Группировка
             final_res = short_df.groupby(group_arr)[agg_name].agg(["sum", "count"]).reset_index()
             final_res.rename(columns={'sum': f'{agg_name}', 'count': 'Кол-во'}, inplace=True)
-
+            
+            #Удаление колонки кол-во если она не нужна
             if(agg_name == 'Количество'):
                 final_res = final_res.drop('Количество',axis = 1)
 
+            #Добавление инфо о релизе
+            final_res = pd.merge(left=final_res, right=self.releases_df, how='left', on='Наименование ОС')
+
             path = directory + fr'\Номенклатура_{sk_name}.xlsx'
             final_res.to_excel(path, sheet_name=f'{sk_name}', index=False)
+        print('Выгрузка номенклатуры прошла успешно')
 
 
 

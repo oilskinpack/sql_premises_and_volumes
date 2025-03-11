@@ -326,6 +326,7 @@ class DbConnector():
         dfFull = dfFull.rename(columns={'name_x':'Наименование модели'
                                         ,'name_y':'Наименование ОС'
                                         ,'version_index':'Версия модели'})
+
         #Конвертим
         dfFull = dfFull.apply(p.convert_to_double)
 
@@ -778,3 +779,33 @@ class DbConnector():
         df_floor_info = df_floor_info.rename(
             columns={'title_x': 'Этаж', 'title_y': 'Тип этажа', 'is_parking': 'Этаж паркинга'})
         return df_floor_info
+
+    def get_releases_df_info(self,source_path):
+        #Сервисная штука, беру id ОС
+        co_df_info = pd.read_excel(source_path,sheet_name='Объекты')[['name','construction_object_id']].dropna(axis=0)
+        co_ids = str(tuple(co_df_info['construction_object_id'].astype(str).array))
+
+        #Получение версий релизов
+        myQuery = 'SELECT * FROM release.releases'
+        releases_df = pd.read_sql_query(myQuery, con=self.engine)[['release_id','name']]
+        releases_df
+
+        #Получение релизов для ОС - только для наших ОС
+        if(len(co_ids) > 1):
+            myQuery = f"SELECT * FROM cp.construction_objects_meta  WHERE construction_object_id IN {co_ids}"
+            oc_releases = pd.read_sql_query(myQuery, con=self.engine)
+        else:
+            myQuery = f"SELECT * FROM cp.construction_objects_meta  WHERE construction_object_id = {co_df_info['construction_object_id'].astype(str).loc[0]}"
+            oc_releases = pd.read_sql_query(myQuery, con=self.engine)
+        oc_releases
+
+        #Добавляем к ним названия релизов
+        сo_and_release_df =  pd.merge(left=oc_releases, right=releases_df, how='left', on='release_id')[['construction_object_id','name']]
+        сo_and_release_df
+
+        #Подвязываем имя объекта
+        co_info_with_release =  pd.merge(left=co_df_info, right=сo_and_release_df.astype(str), how='left', on='construction_object_id')
+        co_info_with_release = co_info_with_release.rename(columns={'name_x':'Наименование ОС','name_y':'Релиз'})[['Наименование ОС','Релиз']]
+        return co_info_with_release
+        
+
