@@ -279,8 +279,9 @@ class VolumesHelper:
             #Добавление инфо о релизе
             final_res = pd.merge(left=final_res, right=self.releases_df, how='left', on='Наименование ОС')
 
-            path = directory + fr'\Номенклатура_{sk_name}.xlsx'
-            final_res.to_excel(path, sheet_name=f'{sk_name}', index=False)
+            file_name = f'Номенклатура_{sk_name}'
+            path = directory + fr'\{file_name}.xlsx'
+            final_res.to_excel(path, sheet_name='Номенклатура', index=False)
         print('Выгрузка номенклатуры прошла успешно')
 
 
