@@ -277,7 +277,8 @@ class VolumesHelper:
                 final_res = final_res.drop('Количество',axis = 1)
 
             #Добавление инфо о релизе
-            final_res = pd.merge(left=final_res, right=self.releases_df, how='left', on='Наименование ОС')
+            releases_df = self.releases_df
+            final_res = pd.merge(left=final_res, right=releases_df, how='left', on='Наименование ОС')
 
             file_name = f'Номенклатура_{sk_name}'
             path = directory + fr'\{file_name}.xlsx'
