@@ -832,7 +832,6 @@ class DbConnector():
     def get_releases_df_info(self,source_path):
         #Сервисная штука, беру id ОС
         co_df_info = pd.read_excel(source_path,sheet_name='Объекты')[['name','construction_object_id']].dropna(axis=0)
-        co_ids = str(tuple(co_df_info['construction_object_id'].astype(str).array))
 
         #Получение версий релизов
         myQuery = 'SELECT * FROM release.releases'
@@ -840,11 +839,12 @@ class DbConnector():
         releases_df
 
         #Получение релизов для ОС - только для наших ОС
-        if(len(co_ids) > 1):
+        if(len(co_df_info) > 1):
+            co_ids = str(tuple(co_df_info['construction_object_id'].astype(str).array))
             myQuery = f"SELECT * FROM cp.construction_objects_meta  WHERE construction_object_id IN {co_ids}"
             oc_releases = pd.read_sql_query(myQuery, con=self.engine)
         else:
-            myQuery = f"SELECT * FROM cp.construction_objects_meta  WHERE construction_object_id = {co_df_info['construction_object_id'].astype(str).loc[0]}"
+            myQuery = f"SELECT * FROM cp.construction_objects_meta  WHERE construction_object_id = '{co_df_info['construction_object_id'].astype(str).loc[0]}'"
             oc_releases = pd.read_sql_query(myQuery, con=self.engine)
         oc_releases
 
