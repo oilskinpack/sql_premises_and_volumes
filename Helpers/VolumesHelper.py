@@ -253,12 +253,12 @@ class VolumesHelper:
             group_arr = group_arr + group_param_arr
 
             # Параметры для суммирования и имя СК
-            agg_name = sk_df['Имя параметра'].iloc[ind]
+            agg_name = sk_df['Имя параметра'].iloc[ind].replace('; ', ';').split(';')
             sk_name = sk_df['Имя СК'].iloc[ind]
 
             # Cбор колонок в массив и удаление лишнего
             all_col = list(group_arr)
-            all_col.append(agg_name)
+            all_col.extend(agg_name)
             short_df = dfFull[all_col]
 
             # Заполнение пустых значений
@@ -269,11 +269,13 @@ class VolumesHelper:
             short_df = short_df[short_df['Имя СК'] == sk_name]
 
             # Группировка
-            final_res = short_df.groupby(group_arr)[agg_name].agg(["sum", "count"]).reset_index()
-            final_res.rename(columns={'sum': f'{agg_name}', 'count': 'Кол-во'}, inplace=True)
+            agg_dict = {col: 'sum' for col in agg_name}
+
+            final_res = short_df.groupby(group_arr).agg(agg_dict).reset_index()
+            final_res['Количество'] = short_df.groupby(group_arr).size().reset_index()[0]
             
             #Удаление колонки кол-во если она не нужна
-            if(agg_name == 'Количество'):
+            if(not('Количество' in agg_name)):
                 final_res = final_res.drop('Количество',axis = 1)
 
             #Добавление инфо о релизе
