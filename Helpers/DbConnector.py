@@ -269,7 +269,7 @@ class DbConnector():
         # Ищем расчет для нужной версии объекта
         dfFull = pd.merge(left=df_calcs, right=dfFull, how='left', on='model_version_id')
         # Список всех calc_id которые нужны
-        df_calc_ids = dfFull[['calc_id','name', 'version_index', 'model_version_id', 'model_id',
+        df_calc_ids = dfFull[['calc_id','name', 'version_index','model_version_id', 'model_id',
                               'created_at', 'recognized', 'elements_count', 'total_elements_count']]
         #Берем самую позднюю калькуляцию
         latest_calcs = df_calc_ids.groupby('model_version_id', group_keys=False).apply(lambda x: x.nlargest(1, "created_at"))
@@ -302,16 +302,28 @@ class DbConnector():
         dfFull = pd.concat([dfFull, df_calc_calculation_param], sort=False, axis=0)
         dfFull = pd.concat([dfFull, df_calc_location_param], sort=False, axis=0)
 
+        #Добавляем к инфо о моделях и их стадиях #Все это Добавил
+        stages_dict = {'656c5b44-4f34-406e-b548-b490f634f862':'Концепция планировок'
+                       ,'d1df7cfd-38d5-41b9-af73-8274ca8b7eaf':'Стадия П'
+                       ,'49f5f46c-d326-4cb5-94de-baa38e9a664c':'Стадия РД'}
+        df_model_stages = self.get_model_stages_df(co_df_info)
+        df_model_stages['Стадия'] = df_model_stages['stage_id'].astype(str).map(stages_dict)
+        df_model_stages = pd.merge(left=df_model_stages, right=df_models, how='left', on='model_stage_id')[['model_id','Стадия']]
+
+
         # Получаем датафрейм с информацией по объектам
         df_all_model_version_elem_id = dfFull[['calc_id', 'model_version_element_id']].value_counts().reset_index()[
             ['calc_id', 'model_version_element_id']]
         df_calc_ids_with_name = df_calc_ids[['calc_id','name','model_id','version_index']]
+        df_calc_ids_with_name = pd.merge(left=df_calc_ids_with_name, right=df_model_stages, how='left', on='model_id') #Добавил
         df_model_info = pd.merge(left=df_all_model_version_elem_id, right=df_calc_ids_with_name, how='left',
                                  on='calc_id')
 
         # Транспонируем
         dfFull = pd.pivot_table(data=dfFull, index='model_version_element_id', columns='title', values='value',
                                 aggfunc='first')
+
+
         #Добавляем колонки с информацией об объекте строительства и версии
         dfFull = pd.merge(left=dfFull, right=df_model_info, how='left', on='model_version_element_id')
 
@@ -320,7 +332,7 @@ class DbConnector():
 
         #Добавляем инфу по стадиям
         dfFull['construction_object_id'] = dfFull['construction_object_id'].astype(str)
-        dfFull = pd.merge(left=dfFull, right=co_df_info, how='left', on='construction_object_id')
+        dfFull = pd.merge(left=dfFull, right=co_df_info, how='left', on=['construction_object_id','Стадия'])
 
         #Наименование стадии и ОС
         dfFull = dfFull.rename(columns={'name_x':'Наименование модели'
@@ -382,6 +394,42 @@ class DbConnector():
         else:
             proper_model_stage_id = str(tuple(stages_obj_df.astype(str)['model_stage_id'].array))
         return proper_model_stage_id
+
+
+    def get_model_stages_df(self,co_df_info):
+        """
+        Метод получения датафрейма с айди стадии для конкретных объектов
+
+        Parameters
+        ----------
+        co_df_info : (pd.Dataframe)
+            Датафрейм с информацией по объектам
+
+        Returns
+        -------
+        pd.Dataframe
+            Датафрейм с перечислением model_stage и stage выбранных объектов
+        """
+        stages_obj_df = []
+        stages_dict = {'Концепция планировок':'656c5b44-4f34-406e-b548-b490f634f862'
+                       ,'Стадия П':'d1df7cfd-38d5-41b9-af73-8274ca8b7eaf'
+                       ,'Стадия РД':'49f5f46c-d326-4cb5-94de-baa38e9a664c'}
+        stages = co_df_info['Стадия'].unique()
+        for stage in stages:
+            obj_count = len(co_df_info[co_df_info['Стадия']==stage])
+            stage_id = stages_dict[stage]
+            if(obj_count == 1):
+                co_id = co_df_info[co_df_info['Стадия'] == stage]['construction_object_id'].iloc[0]
+                myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id = '{co_id}'"
+            else:
+                co_ids = (tuple(co_df_info[co_df_info['Стадия'] == stage]['construction_object_id'].array))
+                myQuery = f"SELECT * FROM bim.model_stages WHERE stage_id = '{stage_id}' AND construction_object_id IN {co_ids}"
+            dfModelStages = pd.read_sql_query(myQuery, con=self.engine)
+            if(len(stages_obj_df) == 0):
+                stages_obj_df = dfModelStages
+            else:
+                stages_obj_df = pd.concat([stages_obj_df,dfModelStages],axis=0)
+        return stages_obj_df
 
     def get_model_ids_str(self,df_models):
         """
@@ -735,10 +783,11 @@ class DbConnector():
         df_constr_id_info['model_id'] = df_constr_id_info['model_id'].astype(str)
         df_full = pd.merge(left=df_full, right=df_constr_id_info, how='left', on='model_id')
 
-        if(len(co_df_info) == 1):
-            coId = co_df_info['construction_object_id'].iloc[0]
+        coIds = tuple(co_df_info['construction_object_id'].unique())
+        if(len(coIds) == 1):
+            coId = coIds[0]
         else:
-            coId = tuple(co_df_info['construction_object_id'].unique())
+            coId = coIds
         df_section_info = self.get_section_df_info(coId)
         df_floors_info = self.get_floor_df_info(coId)
 
@@ -783,7 +832,6 @@ class DbConnector():
     def get_releases_df_info(self,source_path):
         #Сервисная штука, беру id ОС
         co_df_info = pd.read_excel(source_path,sheet_name='Объекты')[['name','construction_object_id']].dropna(axis=0)
-        co_ids = str(tuple(co_df_info['construction_object_id'].astype(str).array))
 
         #Получение версий релизов
         myQuery = 'SELECT * FROM release.releases'
@@ -791,11 +839,12 @@ class DbConnector():
         releases_df
 
         #Получение релизов для ОС - только для наших ОС
-        if(len(co_ids) > 1):
+        if(len(co_df_info) > 1):
+            co_ids = str(tuple(co_df_info['construction_object_id'].astype(str).array))
             myQuery = f"SELECT * FROM cp.construction_objects_meta  WHERE construction_object_id IN {co_ids}"
             oc_releases = pd.read_sql_query(myQuery, con=self.engine)
         else:
-            myQuery = f"SELECT * FROM cp.construction_objects_meta  WHERE construction_object_id = {co_df_info['construction_object_id'].astype(str).loc[0]}"
+            myQuery = f"SELECT * FROM cp.construction_objects_meta  WHERE construction_object_id = '{co_df_info['construction_object_id'].astype(str).loc[0]}'"
             oc_releases = pd.read_sql_query(myQuery, con=self.engine)
         oc_releases
 
@@ -806,6 +855,7 @@ class DbConnector():
         #Подвязываем имя объекта
         co_info_with_release =  pd.merge(left=co_df_info, right=сo_and_release_df.astype(str), how='left', on='construction_object_id')
         co_info_with_release = co_info_with_release.rename(columns={'name_x':'Наименование ОС','name_y':'Релиз'})[['Наименование ОС','Релиз']]
+        co_info_with_release = co_info_with_release.groupby('Наименование ОС').first()
         return co_info_with_release
         
 
