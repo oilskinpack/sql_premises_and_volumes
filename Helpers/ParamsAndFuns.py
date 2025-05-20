@@ -41,6 +41,19 @@ class ParamsAndFuns:
     #Характеристики вида окон
     on_three_and_more_sides = 'На три и более сторон'
     on_three_sides = "Торцевая (три стороны)"
+    on_four_sides = 'Окна на все стороны'
+
+    #Планировочные решения
+    second_light = 'Второй свет'
+    separate_enter = 'Отдельный вход'
+    penthouse = 'Пентхаус'
+    free_plane = 'Свободная планировка'
+
+    #Характеристики уровневости
+    has_duplex = 'Дуплекс'
+    has_mezzanine = 'Антресоль'
+    has_groundfloor = 'С цокольным этажом'
+    has_summer_kitchen = 'Летняя кухня на крыше'
 
     #Характеристики ЛП
     has_terrase_on_roof = 'Терраса на кровле'

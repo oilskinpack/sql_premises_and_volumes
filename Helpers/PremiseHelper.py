@@ -4,7 +4,7 @@ from Helpers.ParamsAndFuns import ParamsAndFuns as p
 
 
 class PremiseHelper:
-    def __init__(self,fullPath):
+    def __init__(self,df):
         """
         Конструктор класса, где нужно указать путь к csv файлу,для загрузки DF по помещениям
 
@@ -13,8 +13,7 @@ class PremiseHelper:
         fullPath: str
             Путь к файлу формата r'D:\Khabarov\RVT\Premises\TEP'\test.csv, разделитель ';'
         """
-        dfParamValues = pd.read_csv(fullPath, sep=';')
-        self.fullDf = self.transposePremiseDf(dfParamValues)
+        self.fullDf = self.transposePremiseDf(df).apply(p.convert_to_double)
 
     def transposePremiseDf(self,dfPremiseParamValues):
         """

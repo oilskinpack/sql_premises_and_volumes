@@ -40,19 +40,29 @@ else:
 #endregion
 
 premHel = PremiseHelper(full_path)
+flats = premHel.getDfOfSellPremisesByDestGrouped('Жилье')
+oneb = flats[flats[p.rooms_sale_count] == 1]
 
-#Исходные данные
-crm_path = r'D:\Khabarov\RVT\ШГР16\18.02\ШГ16_Шахматка.xlsx'
+uniq_features = [p.has_terrase_on_roof
+                ,p.has_terrase_on_floor
+                ,p.has_duplex
+                ,p.has_mezzanine
+                ,p.has_groundfloor
+                # ,p.on_four_sides
+                 ,p.second_light
+                 ,p.separate_enter
+                 ,p.penthouse
+                 ,p.free_plane
+                ,p.has_summer_kitchen]
+
+res = p.show_columns_with_word(oneb,'Своб')
+oneb = oneb[uniq_features]
+res =  oneb[oneb.sum(axis=1) > 0]
 
 
+pantries = premHel.getDfOfSellPremisesByDest('Кладовки')
+park_pans = pantries[pantries[p.bru_section_int_pn] == 4]
+res = park_pans[[p.adsk_premise_number,p.section_str_pn,p.type_pn]]
 
-res = premHel.get_comparing_df_crm_bim(crm_path=crm_path,how='left')
-res.to_excel(r'D:\Khabarov\RVT\ШГР16\18.02\ШГ16_СравнениеСРМBIM.xlsx',sheet_name='Лист1',index=False)
-# res = premHel.show_premise_info('Н2.2.6',[p.name_pn,p.bru_section_int_pn,p.bru_floor_int_pn,p.adsk_index_int_pn])
-
-# flats = premHel.getDfOfSellPremisesByDest('Жилье')
-# res = flats[(flats[p.adsk_type_pn].isin(['СП','СД'])) & (flats[p.rooms_count] == 3)]
-# res = res.groupby(p.adsk_premise_number).apply(lambda x: x.nlargest(1,p.bru_premise_part_area_pn))
-# res = res[p.bru_premise_non_summer_area_pn].sum()
 
 print(res)

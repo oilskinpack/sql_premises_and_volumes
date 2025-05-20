@@ -22,12 +22,13 @@ class VolumesHelper:
         # fullDf = pd.read_csv(fullPath, sep=';')
         dbCon = DbConnector()
         dfFull = dbCon.get_volumes_df(source_path=source_path)
+        self.releases_df = dbCon.get_releases_df_info(source_path=source_path)
         if(dfFull is np.nan):
             dfFull = pd.DataFrame()
 
-        dfFull.loc[:, dfFull.select_dtypes(include=['float']).columns] = dfFull.select_dtypes(include=['float']).fillna(
-            0)
-        dfFull.loc[:, dfFull.select_dtypes(include=['object']).columns] = dfFull.select_dtypes(include=['object']).fillna(0)
+        #Заполнение пустых значений
+        dfFull.loc[:, dfFull.select_dtypes(include=['float']).columns] = dfFull.select_dtypes(include=['float']).fillna(0)
+        dfFull.loc[:, dfFull.select_dtypes(include=['object']).columns] = dfFull.select_dtypes(include=['object']).fillna("Не заполнено")
         self.fullDf = dfFull
 
     def save_boxplotes_for_morph_and_floor_types(self,sk_df,df_full,dir):
@@ -252,12 +253,12 @@ class VolumesHelper:
             group_arr = group_arr + group_param_arr
 
             # Параметры для суммирования и имя СК
-            agg_name = sk_df['Имя параметра'].iloc[ind]
+            agg_name = sk_df['Имя параметра'].iloc[ind].replace('; ', ';').split(';')
             sk_name = sk_df['Имя СК'].iloc[ind]
 
             # Cбор колонок в массив и удаление лишнего
             all_col = list(group_arr)
-            all_col.append(agg_name)
+            all_col.extend(agg_name)
             short_df = dfFull[all_col]
 
             # Заполнение пустых значений
@@ -268,14 +269,23 @@ class VolumesHelper:
             short_df = short_df[short_df['Имя СК'] == sk_name]
 
             # Группировка
-            final_res = short_df.groupby(group_arr)[agg_name].agg(["sum", "count"]).reset_index()
-            final_res.rename(columns={'sum': f'{agg_name}', 'count': 'Кол-во'}, inplace=True)
+            agg_dict = {col: 'sum' for col in agg_name}
 
-            if(agg_name == 'Количество'):
+            final_res = short_df.groupby(group_arr).agg(agg_dict).reset_index()
+            final_res['Количество'] = short_df.groupby(group_arr).size().reset_index()[0]
+            
+            #Удаление колонки кол-во если она не нужна
+            if(not('Количество' in agg_name)):
                 final_res = final_res.drop('Количество',axis = 1)
 
-            path = directory + fr'\Номенклатура_{sk_name}.xlsx'
-            final_res.to_excel(path, sheet_name=f'{sk_name}', index=False)
+            #Добавление инфо о релизе
+            releases_df = self.releases_df
+            final_res = pd.merge(left=final_res, right=releases_df, how='left', on='Наименование ОС')
+
+            file_name = f'Номенклатура_{sk_name}'
+            path = directory + fr'\{file_name}.xlsx'
+            final_res.to_excel(path, sheet_name='Номенклатура', index=False)
+        print('Выгрузка номенклатуры прошла успешно')
 
 
 
