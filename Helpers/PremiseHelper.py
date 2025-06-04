@@ -399,7 +399,7 @@ class PremiseHelper:
             Данные по площадям
         '''
         flats = self.getDfOfSellPremisesByDest('Жилье')
-        flats = flats[flats[p.name_pn].isin(['Балкон', 'Лоджия', 'Лоджия (холодная)', 'Терраса', 'Терраса на земле'])]
+        flats = flats[flats[p.name_pn].isin(['Балкон', 'Лоджия', 'Лоджия (холодная)', 'Терраса', 'Терраса на земле','Лоджия (техническая)'])]
         res = flats.groupby(p.name_pn).sum()[p.bru_premise_part_area_pn]
         return  res
 
@@ -949,3 +949,53 @@ class PremiseHelper:
         comp_df = comp_df[['Номер помещения_CRM', 'Номер помещения_BIM', 'Вид помещения'
             , 'Площадь общая_CRM', 'Площадь общая_BIM', 'Площадь общая_Δ']]
         return comp_df
+    
+    # def find_doubles(self,bru_type):
+    #     prems = self.fullDf
+    #     prems = prems[prems[p.type_pn].isin([bru_type])]
+    #     # prems[p.adsk_index_int_pn] = np.where(prems[p.adsk_index_int_pn] == 0,0,prems[p.adsk_index_int_pn])
+
+    #     param = p.adsk_premise_number
+    #     grPrems = prems.groupby([p.bru_category_pn,p.bru_section_int_pn,p.bru_floor_int_pn,p.adsk_index_int_pn],as_index=False)[param].apply(lambda x: set(x))
+    #     grPrems = grPrems[grPrems[param].apply(lambda x: len(x)) > 1]
+    #     return grPrems
+    
+    def show_floor_types(self):
+        """Метод получения списка секций и этажей, а также их типов (определяется исходя из назначения помещений)
+
+        Returns
+        -------
+            Датафрейм со значениями секций, этажей и типов этажей
+        """
+        df = self.fullDf
+        sect_fl_df = df.groupby([p.section_str_pn,p.bru_section_int_pn,p.bru_floor_int_pn],as_index=False)[p.bru_destination_pn].agg(lambda x: ','.join(set(x)))
+        sect_fl_df['Тип этажа'] = ""
+        sect_fl_df['Тип этажа'] = np.where((sect_fl_df['Тип этажа'] == '') & (sect_fl_df[p.bru_floor_int_pn] < 1)
+                                        ,'-1 этаж'
+                                        ,'')
+        sect_fl_df['Тип этажа'] = np.where((sect_fl_df['Тип этажа'] == '') & (sect_fl_df[p.bru_floor_int_pn] == 1)
+                                        ,'1 этаж'
+                                        ,sect_fl_df['Тип этажа'])
+        sect_fl_df['Тип этажа'] = np.where(
+                                            (sect_fl_df['Тип этажа'] == '') & 
+                                            sect_fl_df[p.bru_destination_pn].str.contains('Жилье') & 
+                                            sect_fl_df[p.bru_destination_pn].str.contains('Техническое'),
+                                            'Верхний этаж',
+                                            sect_fl_df['Тип этажа']
+                                        )
+
+        sect_fl_df['Тип этажа'] = np.where(
+                                            (sect_fl_df['Тип этажа'] == '') & 
+                                            sect_fl_df[p.bru_destination_pn].str.contains('Техническое'),
+                                            'Верхний этаж',
+                                            sect_fl_df['Тип этажа']
+                                        )
+        sect_fl_df['Тип этажа'] = np.where(
+                                            (sect_fl_df['Тип этажа'] == '') & 
+                                            sect_fl_df[p.bru_floor_int_pn] != 0,
+                                            'Типовой этаж',
+                                            sect_fl_df['Тип этажа']
+                                        )
+        sect_fl_df = sect_fl_df.drop('Назначение',axis=1)
+        return sect_fl_df
+
