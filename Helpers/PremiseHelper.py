@@ -950,15 +950,15 @@ class PremiseHelper:
             , 'Площадь общая_CRM', 'Площадь общая_BIM', 'Площадь общая_Δ']]
         return comp_df
     
-    def find_doubles(self,bru_type):
-        prems = self.fullDf
-        prems = prems[prems[p.type_pn].isin([bru_type])]
-        # prems[p.adsk_index_int_pn] = np.where(prems[p.adsk_index_int_pn] == 0,0,prems[p.adsk_index_int_pn])
+    # def find_doubles(self,bru_type):
+    #     prems = self.fullDf
+    #     prems = prems[prems[p.type_pn].isin([bru_type])]
+    #     # prems[p.adsk_index_int_pn] = np.where(prems[p.adsk_index_int_pn] == 0,0,prems[p.adsk_index_int_pn])
 
-        param = p.adsk_premise_number
-        grPrems = prems.groupby([p.bru_category_pn,p.bru_section_int_pn,p.bru_floor_int_pn,p.adsk_index_int_pn],as_index=False)[param].apply(lambda x: set(x))
-        grPrems = grPrems[grPrems[param].apply(lambda x: len(x)) > 1]
-        return grPrems
+    #     param = p.adsk_premise_number
+    #     grPrems = prems.groupby([p.bru_category_pn,p.bru_section_int_pn,p.bru_floor_int_pn,p.adsk_index_int_pn],as_index=False)[param].apply(lambda x: set(x))
+    #     grPrems = grPrems[grPrems[param].apply(lambda x: len(x)) > 1]
+    #     return grPrems
     
     def show_floor_types(self):
         """Метод получения списка секций и этажей, а также их типов (определяется исходя из назначения помещений)
