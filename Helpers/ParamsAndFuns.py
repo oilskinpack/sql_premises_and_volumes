@@ -4,6 +4,8 @@ import sys
 
 import pandas as pd
 
+#from Helpers.PremiseHelper import PremiseHelper
+
 
 
 class ParamsAndFuns:
@@ -332,6 +334,8 @@ class ParamsAndFuns:
         log = log + info
         with open(dir + fr'\{short_name}_info.txt', "w") as file:
             file.write(log)
+
+
 
 
 
