@@ -249,7 +249,7 @@ class ParamsAndFuns:
         """
         full_time = fin_t - start_t
         mbite = round(sys.getsizeof(df) * (0.125*(10**(-6))),2)
-        print(f'Затраченное время: {full_time}, вес: {mbite} МБайт')
+        print(f'\nЗатраченное время: {full_time}, вес: {mbite} МБайт')
 
     @staticmethod
     def load_few_df(dir,name_arr):
