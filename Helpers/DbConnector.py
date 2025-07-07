@@ -277,6 +277,7 @@ class DbConnector():
             calc_ids_arr = str(tuple(latest_calcs.astype(str)['calc_id'].array))
         else:
             calc_ids_arr = latest_calcs.astype(str)['calc_id'].iloc[0]
+        print("Завершен сбор id по необходимым версиям моделей")
 
 
         # =====Распознавание=====
@@ -291,16 +292,21 @@ class DbConnector():
         #=====Значения параметров=====
         # Значения параметров распознавания
         df_recogn_param_values = self.get_recogn_param_values(df_recogn_param_values)
+        print("Завершен сбор параметров распознавания")
         # Значения параметров стандартизации
         df_calc_standart_param = self.get_standard_param_values(calc_ids_arr,all_model_vers_elem_ids)
+        print("Завершен сбор параметров стандартизации")
         # Значения параметров расчета
         df_calc_calculation_param = self.get_calculation_param_values(calc_ids_arr,all_model_vers_elem_ids)
+        print("Завершен сбор параметров расчета")
         # Значения параметров расположения
         df_calc_location_param = self.get_location_param_values(calc_ids_arr,all_model_vers_elem_ids)
+        print("Завершен сбор параметров расположения")
         # Объединяем датафреймы с параметрами
         dfFull = pd.concat([df_recogn_param_values, df_calc_standart_param], sort=False, axis=0)
         dfFull = pd.concat([dfFull, df_calc_calculation_param], sort=False, axis=0)
         dfFull = pd.concat([dfFull, df_calc_location_param], sort=False, axis=0)
+        print("Завершено объединение данных")
 
         #Добавляем к инфо о моделях и их стадиях #Все это Добавил
         stages_dict = {'656c5b44-4f34-406e-b548-b490f634f862':'Концепция планировок'
@@ -323,7 +329,6 @@ class DbConnector():
         dfFull = pd.pivot_table(data=dfFull, index='model_version_element_id', columns='title', values='value',
                                 aggfunc='first')
 
-
         #Добавляем колонки с информацией об объекте строительства и версии
         dfFull = pd.merge(left=dfFull, right=df_model_info, how='left', on='model_version_element_id')
 
@@ -338,6 +343,7 @@ class DbConnector():
         dfFull = dfFull.rename(columns={'name_x':'Наименование модели'
                                         ,'name_y':'Наименование ОС'
                                         ,'version_index':'Версия модели'})
+        print("Завершено добавление информации по секциям, этажам и стадиям")
 
         #Конвертим
         dfFull = dfFull.apply(p.convert_to_double)
