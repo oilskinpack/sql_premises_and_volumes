@@ -998,4 +998,32 @@ class PremiseHelper:
                                         )
         sect_fl_df = sect_fl_df.drop('Назначение',axis=1)
         return sect_fl_df
+    
+    def get_data_for_sale_histogram(self,coId,stage,name):
+        living = self.getDfOfSellPremisesByDest('Жилье')
+        flats_df = living.groupby([p.adsk_premise_number],as_index=False).first()[[p.adsk_premise_number
+                                                                                   ,p.bru_premise_full_area_pn
+                                                                                   ,p.adsk_type_pn
+                                                                                   ,p.rooms_count
+                                                                                   ,p.bru_type_pn
+                                                                                   ,p.rooms_sale_count
+                                                                                   ,'Терраса на кровле'
+                                                                                    , 'Терраса на земле'
+                                                                                    ,'Дуплекс'
+                                                                                    ,'Антресоль'
+                                                                                    ,'С цокольным этажом'
+                                                                                    ,'Летняя кухня на крыше'
+                                                                                    ,'Второй свет'
+                                                                                    ,'Отдельный вход'
+                                                                                    ,'Пентхаус'
+                                                                                    ,'Свободная планировка'
+                                                                                   ]]
+        flats_df = flats_df.rename({'Тип квартиры':'Типология_Эксп'
+                                    ,'Количество комнат':'Кол-во комнат_Эксп'
+                                    ,'BRU_Тип квартиры':'Типология_Ассортимент'
+                                    ,'Количество комнат для продаж':"Кол-во комнат_Ассортимент"},axis=1)
+        flats_df['construction_object_id'] = coId
+        flats_df['Стадия'] = stage
+        flats_df['Наименование ОС'] = name
+        return flats_df
 
