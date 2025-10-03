@@ -1,5 +1,5 @@
 import os
-
+from typing import List,Dict
 import numpy as np
 import pandas as pd
 from Helpers.ParamsAndFuns import ParamsAndFuns as p
@@ -9,7 +9,7 @@ from Helpers.DbConnector import DbConnector
 
 
 class VolumesHelper:
-    def __init__(self,source_path):
+    def __init__(self,source_path: str) -> None:
         """
         Класс для загрузки датафрейма и работы с ним
 
@@ -31,7 +31,7 @@ class VolumesHelper:
         dfFull.loc[:, dfFull.select_dtypes(include=['object']).columns] = dfFull.select_dtypes(include=['object']).fillna("Не заполнено")
         self.fullDf = dfFull
 
-    def save_boxplotes_for_morph_and_floor_types(self,sk_df,df_full,dir):
+    def save_boxplotes_for_morph_and_floor_types(self,sk_df: List[List[str]],df_full: pd.DataFrame,dir: str) -> None:
         """
         Метод для сохранения swarmplot графиков по всем СК, всем морфотипам и этажам
         Parameters
@@ -76,7 +76,7 @@ class VolumesHelper:
                 plt.clf()
 
 
-    def get_df_array_by_floor_sum(self,sk_df,df_full,sum_param):
+    def get_df_array_by_floor_sum(self,sk_df:List[List[str]],df_full: pd.DataFrame,sum_param: str) -> pd.DataFrame:
         """
         Метод для получения словаря датафреймов по типам СК. В датафрейме каждая строка - этаж секции объекта и сумма параметра
         Parameters
@@ -101,7 +101,7 @@ class VolumesHelper:
             df_arr[sk] = volumes_df
         return df_arr
 
-    def get_df_arr_sk_dev(self,dfFull,sk_df,co_df_info):
+    def get_df_arr_sk_dev(self,dfFull: pd.DataFrame,sk_df: pd.DataFrame,co_df_info: pd.DataFrame) -> Dict[str:pd.DataFrame]:
         """
         Метод получения словаря датафреймов по СК, где будут значения по этажам, эталон и отклонение
         Parameters
@@ -139,7 +139,7 @@ class VolumesHelper:
         return  df_arr
 
 
-    def get_standarts(self,dfFull,sk_df):
+    def get_standarts(self,dfFull: pd.DataFrame,sk_df: pd.DataFrame) -> Dict[str:pd.DataFrame]:
         """
         Метод получения словаря с датафреймами по эталонам
         Parameters
@@ -339,7 +339,14 @@ class VolumesHelper:
 
         print('Выгрузка таблицы соответствия радиаторов стандарту завершена')
 
-    def save_concrete_sheet(self,directory):
+    def save_concrete_sheet(self,directory:str) -> None:
+        """Сохранение таблицы с объемов бетона (монолит и префаб)
+
+        Parameters
+        ----------
+        directory
+            Директория для сохранения файла
+        """
         grDf = self.fullDf.groupby(['Наименование ОС','Секция','Этаж'],as_index=False).agg(
             Морфотип=('Морфотип секции',lambda x: next((v for v in x if v != "Не заполнено"),'ВНИМАНИЕ'))
             ,Тип_этажа=('Тип этажа',lambda x: next((v for v in x if v != "Не заполнено"),'ВНИМАНИЕ'))
