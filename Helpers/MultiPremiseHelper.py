@@ -7,13 +7,36 @@ import numpy as np
 
 
 class MultiPremiseHelper:
+    """Обновленный класс PremiseHelper, способный загружать данные по помещениям сразу по нескольким домам
+    """
 
-    def __init__(self,source_path,dbCon):
+    def __init__(self,source_path: str,dbCon : DbConnector) -> None:
+        """Конструктор класса
 
+        Parameters
+        ----------
+        source_path
+            Полный абсолютный путь до эксель таблицы ИсходныеДанные
+        dbCon
+            Созданный экземпляр DBConnector
+        """
         self.dfFull = self.__load_full_df_premises(source_path,dbCon)
         self.dbCon = dbCon
     
-    def __load_full_df_premises(self,source_path,dbCon):
+    def __load_full_df_premises(self,source_path: str,dbCon: DbConnector) -> pd.DataFrame:
+        """Загрузка полного датафрейма с помещениями
+
+        Parameters
+        ----------
+        source_path
+            Полный абсолютный путь до эксель таблицы ИсходныеДанные
+        dbCon
+            Созданный экземпляр DBConnector
+
+        Returns
+        -------
+            _description_
+        """
         data = None
 
         co_df_info = pd.read_excel(source_path,sheet_name='Объекты')[['name','Стадия','construction_object_id']].dropna(axis=0)
@@ -38,7 +61,18 @@ class MultiPremiseHelper:
                     print(f'Не удалось загрузить {name} {stage}')
         return data
     
-    def __get_living_etp_df(self,full_df):
+    def __get_living_etp_df(self,full_df: pd.DataFrame) -> pd.DataFrame:
+        """Получение датафрейма с квартирами
+
+        Parameters
+        ----------
+        full_df
+            Полный датафрейм с помещениями
+
+        Returns
+        -------
+            Датафрейм с квартирами
+        """
 
         df = full_df
 
@@ -136,7 +170,18 @@ class MultiPremiseHelper:
         return premises_gr
     
 
-    def __get_not_living_etp_df(self,full_df):
+    def __get_not_living_etp_df(self,full_df: pd.DataFrame) -> pd.DataFrame:
+        """Получение датафрейма с нежилыми помещениями
+
+        Parameters
+        ----------
+        full_df
+            Полный датафрейм с помещениями
+
+        Returns
+        -------
+            Датафрейм с нежилыми помещениями
+        """
         df = full_df
 
         dests = ['Ритейл','Кладовки','Машино-место']
@@ -243,7 +288,18 @@ class MultiPremiseHelper:
         return not_living_df
     
 
-    def __get_common_etp_df(self,full_df):
+    def __get_common_etp_df(self,full_df: pd.DataFrame) -> pd.DataFrame:
+        """Получение датафрейма с моп и техн помещениями
+
+        Parameters
+        ----------
+        full_df
+            Полный датафрейм с помещениями
+
+        Returns
+        -------
+            Датафрейм с моп и техн помещениями
+        """
 
         df = full_df
         cats = ['Жилье','Кладовые','Коммерческие помещения','Паркинг',"Технические помещения"]
@@ -338,7 +394,14 @@ class MultiPremiseHelper:
         
         return not_living_df
     
-    def save_etp_form(self,directory):
+    def save_etp_form(self,directory: str) -> None:
+        """Сохранение формы ЕТП
+
+        Parameters
+        ----------
+        directory
+            Абсолютный путь до директории, куда сохранять
+        """
         data = self.dfFull
         co_name = data.iloc[0]['Наименование ОС']
         date = datetime.now().strftime("%d_%m_%Y_%H_%M")
@@ -361,7 +424,13 @@ class MultiPremiseHelper:
         except Exception as e:
             print(f"Ошибка при сохранении: {e}")
 
-    def show_new_premises_for_dictionary(self):
+    def show_new_premises_for_dictionary(self) -> pd.DataFrame:
+        """Показывает какие помещения из квартирографии не занесены в справочник помещений
+
+        Returns
+        -------
+            Датафрейм с новыми помещениями
+        """
         col_map = {'premise_category': p.bru_category_pn
            , 'premise_type': p.type_pn
            , 'premise_purpose': p.bru_destination_pn
