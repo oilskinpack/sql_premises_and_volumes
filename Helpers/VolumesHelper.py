@@ -339,5 +339,26 @@ class VolumesHelper:
 
         print('Выгрузка таблицы соответствия радиаторов стандарту завершена')
 
+    def save_concrete_sheet(self,directory):
+        grDf = self.fullDf.groupby(['Наименование ОС','Секция','Этаж'],as_index=False).agg(
+            Морфотип=('Морфотип секции',lambda x: next((v for v in x if v != "Не заполнено"),'ВНИМАНИЕ'))
+            ,Тип_этажа=('Тип этажа',lambda x: next((v for v in x if v != "Не заполнено"),'ВНИМАНИЕ'))
+            ,Пилоны = ('Имя СК',lambda x: next((True for v in x if v == 'Монолитный пилон'),False))
+            ,Стены = ('Имя СК',lambda x: next((True for v in x if v == 'Монолитная стена'),False))
+            ,Марши = ('Имя СК',lambda x: next((True for v in x if v == 'Монолитный марш'),False))
+            ,Площадки = ('Имя СК',lambda x: next((True for v in x if v == 'Монолитная площадка'),False))
+            ,Фунд_плиты = ('Имя СК',lambda x: next((True for v in x if v == 'Монолитная фундаментная плита'),False))
+            ,Сб_марши = ('Имя СК',lambda x: next((True for v in x if v == 'Сборный марш'),False))
+            ,Сб_площадки = ('Имя СК',lambda x: next((True for v in x if v == 'Сборная площадка'),False))
+            ,Сб_балконы = ('Имя СК',lambda x: next((True for v in x if v == 'Сборный балкон'),False))
+            ,Префаб_В = ('Имя СК',lambda x: next((True for v in x if v == 'Префаб. Вертикальная конструкция'),False))
+            ,Префаб_Г = ('Имя СК',lambda x: next((True for v in x if v == 'Префаб. Горизонтальная конструкция'),False))
+            ,Сб_отливы = ('Имя СК',lambda x: next((True for v in x if v == 'Сборный отлив'),False))
+            ,Объем_бетона = ('Объем, м3','sum'))
+        file_name = "\Объем_бетона_ПД.xlsx"
+        path = directory + file_name
+        grDf.to_excel(path,sheet_name='Лист1',index=False)
+        print("Ведомость по объему выгружена")
+
 
 
