@@ -78,7 +78,7 @@ class MultiPremiseHelper:
 
         #Берем помещения квартир
         premises = df[df[p.bru_destination_pn] == 'Жилье']
-        premises = premises[[
+        premises = premises.copy()[[
                         p.adsk_premise_number
                     ,p.section_str_pn
                     ,p.rooms_sale_count
@@ -114,7 +114,7 @@ class MultiPremiseHelper:
         premises['Уникальность'] = premises['Уникальность'].apply(lambda x: "Особенная" if x == True else "Стандартная")
 
         #Парсим основной этаж
-        premises['Секция'] = premises[p.adsk_premise_number].str.split('.').str[0]
+        premises.loc[premises.index,'Секция'] = premises.loc[premises.index,p.adsk_premise_number].str.split('.').str[0]
         premises['Индекс квартиры'] = premises[p.adsk_premise_number].str.split('.').str[2]
 
         #Добавляем площади по лп для суммирования
@@ -136,6 +136,7 @@ class MultiPremiseHelper:
                                                                                                 ,Пл_балкона=('Пл_балкона','sum')
                                                                                                 ,Пл_лоджии=('Пл_лоджии','sum')
                                                                                                 ,Пл_лоджии_хол=('Пл_лоджии_хол','sum')
+                                                                                                ,Пл_лоджии_техн=('Пл_лоджии_техн','sum')
                                                                                                 ,Пл_хол_клад=('Пл_хол_клад','sum')
                                                                                                 ,Терраса_кровля=('Терраса_кровля','sum')
                                                                                                 ,Терраса_земля=('Терраса_земля','sum')
@@ -152,6 +153,7 @@ class MultiPremiseHelper:
                     ,"Пл_балкона" : "Площадь\nбалкона, м²"
                     ,"Пл_лоджии" : "Площадь\nлоджии, м²"
                     ,"Пл_лоджии_хол" : "Площадь\nлоджии (холодной), м²"
+                    ,"Пл_лоджии_техн": "Площадь\nлоджии (технической), м²"
                     ,"Пл_хол_клад" : "Площадь\nхолодной кладовой, м²"
                     ,"Терраса_кровля" : "Площадь\nтеррасы на\nкровле, м²"
                     ,"Терраса_земля" : "Площадь\nтеррасы на\nземле, м²"
@@ -167,6 +169,28 @@ class MultiPremiseHelper:
         #Сортировка
         premises_gr = premises_gr.sort_values(by=[p.section_str_pn,p.bru_floor_int_pn,"Индекс_квартиры"])
         premises_gr = premises_gr.drop(labels=['Индекс_квартиры'],axis=1)
+        premises_gr['Кол-во квартир'] = 1
+
+        premises_gr = premises_gr[[
+            'Кол-во квартир'
+           ,"Номер квартиры"
+            ,"Номер секции"
+            ,"Кол-во комнат\nдля продаж"
+            ,"Площадь\nбез летних, м²"
+            ,"Площадь\nлетних, м²"
+            ,"Площадь квартиры\nбез коэффициентов,м²"
+            ,"Уникальность"
+            ,"Этаж"
+            ,"Площадь\nуровня, м²"
+            ,"Площадь\nбалкона, м²"
+            ,"Площадь\nлоджии, м²"
+            ,"Площадь\nлоджии (холодной), м²"
+            ,"Площадь\nлоджии (технической), м²"
+            ,"Площадь\nхолодной кладовой, м²"
+            ,"Площадь\nтеррасы на\nкровле, м²"
+            ,"Площадь\nтеррасы на\nземле, м²"
+        ]]
+
         return premises_gr
     
 
@@ -185,21 +209,21 @@ class MultiPremiseHelper:
         df = full_df
 
         dests = ['Ритейл','Кладовки','Машино-место']
+        linked_prems_col_name = "BRU_Связанные помещения"
 
         common_and_tech = []
-
+        premises_st = []
         for dest in dests:
             #Берем помещения ритейлов
             if dest == "Машино-место":
-                premises = df[
-                        (df[p.type_pn] == dest)
-                            ]
+                premises_st = df[(df[p.type_pn] == dest)].copy()
             else:
-                premises = df[(df[p.bru_destination_pn] == dest)
+                premises_st = df[(df[p.bru_destination_pn] == dest)
                                     & (df[p.type_pn] != "МОП")
-                                    ]
-            premises = premises[[
-                            p.adsk_premise_number
+                                    ].copy()
+                
+            col_names = [
+                        p.adsk_premise_number
                         ,p.section_str_pn
                         ,p.bru_destination_pn
                         ,p.bru_premise_full_area_pn
@@ -207,12 +231,16 @@ class MultiPremiseHelper:
                         ,p.name_pn
                         ,p.bru_premise_part_area_pn
                         ,"Высота потолка от пола"
-                        ]]
-            premises
+                        ,linked_prems_col_name
+                        ]
+            if linked_prems_col_name not in premises_st.columns:
+                premises_st[linked_prems_col_name] = ""
+            
+            premises = premises_st[col_names].copy()
 
             #Парсим основной этаж
             if dest != "Машино-место":
-                premises['Секция'] = premises[p.adsk_premise_number].str.split('.').str[0]
+                premises.loc[premises.index,'Секция'] = premises.loc[premises.index,p.adsk_premise_number].str.split('.').str[0]
             else:
                 premises['Секция'] = premises[p.section_str_pn]
             
@@ -227,7 +255,7 @@ class MultiPremiseHelper:
             premises['Пл_хол_клад'] = np.where(premises[p.name_pn] == "Холодная кладовая", premises[p.bru_premise_part_area_pn],0)
             premises['Терраса_земля'] = np.where(premises[p.name_pn] == "Терраса на земле", premises[p.bru_premise_part_area_pn],0)
             premises['Терраса_кровля'] = np.where(premises[p.name_pn] == "Терраса", premises[p.bru_premise_part_area_pn],0)
-            premises
+
             premises_gr = premises.groupby([p.adsk_premise_number,p.bru_destination_pn,p.bru_floor_int_pn],as_index=False).agg(Номер_секции=('Секция','first')
                                                                                                     ,Пл_без_Коэф=(p.bru_premise_full_area_pn,'first')
                                                                                                     ,Высота=("Высота потолка от пола",'median')
@@ -236,9 +264,11 @@ class MultiPremiseHelper:
                                                                                                     ,Пл_балкона=('Пл_балкона','sum')
                                                                                                     ,Пл_лоджии=('Пл_лоджии','sum')
                                                                                                     ,Пл_лоджии_хол=('Пл_лоджии_хол','sum')
+                                                                                                    ,Пл_лоджии_техн=('Пл_лоджии_техн','sum')
                                                                                                     ,Пл_хол_клад=('Пл_хол_клад','sum')
                                                                                                     ,Терраса_кровля=('Терраса_кровля','sum')
                                                                                                     ,Терраса_земля=('Терраса_земля','sum')
+                                                                                                    ,Связанные_помещения=(linked_prems_col_name,'first')
                                                                                                     ,Индекс_квартиры=(p.adsk_index_int_pn,'first')
                                                                                                     )
 
@@ -247,17 +277,18 @@ class MultiPremiseHelper:
                         "Номер_секции":"Номер секции"
                         ,"Номер квартиры": "Условный номер"
                         ,"Назначение": "Назначение\nпомещения"
-                        ,"Этаж": "Этаж\nрасположения"
-                        ,"Осн_этаж": "Этаж"
+                        ,"Осн_этаж": "Этаж\nрасположения"
                         ,"Пл_без_Коэф": "Площадь, м²"
                         ,"Высота": "Высота\nпотолков, м"
                         ,"Пл_уровня" : "Площадь\nуровня, м²"
                         ,"Пл_балкона" : "Площадь\nбалкона, м²"
                         ,"Пл_лоджии" : "Площадь\nлоджии, м²"
                         ,"Пл_лоджии_хол" : "Площадь\nлоджии (холодной), м²"
+                        ,"Пл_лоджии_техн": "Площадь\nлоджии (технической), м²"
                         ,"Пл_хол_клад" : "Площадь\nхолодной кладовой, м²"
                         ,"Терраса_кровля" : "Площадь\nтеррасы на\nкровле, м²"
                         ,"Терраса_земля" : "Площадь\nтеррасы на\nземле, м²"
+                        ,"Связанные_помещения": "Связанные\nпомещения"
                     }
             premises_gr = premises_gr.rename(mapper=mapper,axis=1)
 
@@ -271,21 +302,40 @@ class MultiPremiseHelper:
             premises_gr = premises_gr.sort_values(by=[p.section_str_pn,"Этаж\nрасположения","Индекс_квартиры"])
             premises_gr = premises_gr.drop(labels=['Индекс_квартиры'],axis=1)
             premises_gr
-            common_and_tech.append(premises_gr)
 
             if dest == 'Машино-место':
                 premises_gr['Назначение\nпомещения'] = 'Машино-место'
                 premises_gr['Площадь, м²'] = premises_gr['Площадь\nуровня, м²']
                 premises_gr['Высота\nпотолков, м'] = 0
+                premises_gr['Площадь\nуровня, м²'] = 0
+
+            
+            premises_gr = premises_gr[[
+            'Условный номер'
+           ,"Назначение\nпомещения"
+            ,"Этаж\nрасположения"
+            ,"Номер секции"
+            ,"Площадь, м²"
+            ,"Высота\nпотолков, м"
+            ,"Этаж"
+            ,"Площадь\nуровня, м²"
+            ,"Площадь\nбалкона, м²"
+            ,"Площадь\nлоджии, м²"
+            ,"Площадь\nлоджии (холодной), м²"
+            ,"Площадь\nлоджии (технической), м²"
+            ,"Площадь\nхолодной кладовой, м²"
+            ,"Площадь\nтеррасы на\nкровле, м²"
+            ,"Площадь\nтеррасы на\nземле, м²"
+            ,"Связанные\nпомещения"
+            ]]
+            
+            common_and_tech.append(premises_gr)
 
 
-        cols = common_and_tech[0].columns
 
-        #Объединяем в одну таблицу
-        not_living_df = pd.DataFrame(columns=cols)
-        for d in common_and_tech:
-            not_living_df = pd.concat([not_living_df,d],axis=0)
-        return not_living_df
+
+        res = pd.concat(common_and_tech, axis=0, ignore_index=True)
+        return res
     
 
     def __get_common_etp_df(self,full_df: pd.DataFrame) -> pd.DataFrame:
@@ -362,10 +412,12 @@ class MultiPremiseHelper:
             num_cols = premises .select_dtypes(include=[float]).columns
             premises[num_cols] = premises[num_cols].round(2)
             premises['Этаж\nрасположения'] = premises['Этаж\nрасположения'].astype(int)
+            premises["№ п/п"] = 1
 
             #Порядок колонок
             premises = premises[[
-                            "Имя"
+                            "№ п/п"
+                            ,"Имя"
                             ,"Этаж\nрасположения"
                             ,"Номер секции"
                             ,"Вид помещения"
@@ -386,12 +438,14 @@ class MultiPremiseHelper:
             common_and_tech.append(premises)
 
         #Объединяем в одну таблицу
-        cols = common_and_tech[0].columns
-        not_living_df = pd.DataFrame(columns=cols)
-        for d in common_and_tech:
-            not_living_df = pd.concat([not_living_df,d],axis=0)
-        not_living_df
+        not_living_df = pd.concat(common_and_tech, axis=0, ignore_index=True)
+
+        not_living_df = not_living_df.reset_index()
+        not_living_df['№ п/п'] = not_living_df.index + 1
+        not_living_df = not_living_df.drop(['index'],axis=1)
         
+
+
         return not_living_df
     
     def save_etp_form(self,directory: str) -> None:
