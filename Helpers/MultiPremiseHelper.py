@@ -37,7 +37,7 @@ class MultiPremiseHelper:
         -------
             _description_
         """
-        data = None
+        full_data = None
 
         co_df_info = pd.read_excel(source_path,sheet_name='Объекты')[['name','Стадия','construction_object_id']].dropna(axis=0)
         for ind,co in co_df_info.iterrows():
@@ -48,18 +48,20 @@ class MultiPremiseHelper:
                 try:
                     df = dbCon.getFullDfPremise(coId, stage, 'premise',version=999)
                     premHel = PremiseHelper(df)
-                    if(data is None):
+                    if(full_data is None):
                         data = premHel.fullDf
                         data['Наименование ОС'] = name
-                        data = data
+                        data['Стадия'] = stage
+                        full_data = data
                     else:
                         data = premHel.fullDf
                         data['Наименование ОС'] = name
-                        data = pd.concat([data,data],axis=0)
+                        data['Стадия'] = stage
+                        full_data = pd.concat([full_data,data],axis=0)
                     print(f'Добавлен {name} {stage}')
                 except:
                     print(f'Не удалось загрузить {name} {stage}')
-        return data
+        return full_data
     
     def __get_living_etp_df(self,full_df: pd.DataFrame) -> pd.DataFrame:
         """Получение датафрейма с квартирами

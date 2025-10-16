@@ -1,5 +1,5 @@
 import os
-from typing import List,Dict
+from typing import List
 import numpy as np
 import pandas as pd
 from Helpers.ParamsAndFuns import ParamsAndFuns as p
@@ -101,7 +101,7 @@ class VolumesHelper:
             df_arr[sk] = volumes_df
         return df_arr
 
-    def get_df_arr_sk_dev(self,dfFull: pd.DataFrame,sk_df: pd.DataFrame,co_df_info: pd.DataFrame) -> Dict[str:pd.DataFrame]:
+    def get_df_arr_sk_dev(self,dfFull: pd.DataFrame,sk_df: pd.DataFrame,co_df_info: pd.DataFrame):
         """
         Метод получения словаря датафреймов по СК, где будут значения по этажам, эталон и отклонение
         Parameters
@@ -139,7 +139,7 @@ class VolumesHelper:
         return  df_arr
 
 
-    def get_standarts(self,dfFull: pd.DataFrame,sk_df: pd.DataFrame) -> Dict[str:pd.DataFrame]:
+    def get_standarts(self,dfFull: pd.DataFrame,sk_df: pd.DataFrame):
         """
         Метод получения словаря с датафреймами по эталонам
         Parameters
