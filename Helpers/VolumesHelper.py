@@ -1,5 +1,5 @@
 import os
-
+from typing import List
 import numpy as np
 import pandas as pd
 from Helpers.ParamsAndFuns import ParamsAndFuns as p
@@ -9,7 +9,7 @@ from Helpers.DbConnector import DbConnector
 
 
 class VolumesHelper:
-    def __init__(self,source_path):
+    def __init__(self,source_path: str) -> None:
         """
         Класс для загрузки датафрейма и работы с ним
 
@@ -31,7 +31,7 @@ class VolumesHelper:
         dfFull.loc[:, dfFull.select_dtypes(include=['object']).columns] = dfFull.select_dtypes(include=['object']).fillna("Не заполнено")
         self.fullDf = dfFull
 
-    def save_boxplotes_for_morph_and_floor_types(self,sk_df,df_full,dir):
+    def save_boxplotes_for_morph_and_floor_types(self,sk_df: List[List[str]],df_full: pd.DataFrame,dir: str) -> None:
         """
         Метод для сохранения swarmplot графиков по всем СК, всем морфотипам и этажам
         Parameters
@@ -76,7 +76,7 @@ class VolumesHelper:
                 plt.clf()
 
 
-    def get_df_array_by_floor_sum(self,sk_df,df_full,sum_param):
+    def get_df_array_by_floor_sum(self,sk_df:List[List[str]],df_full: pd.DataFrame,sum_param: str) -> pd.DataFrame:
         """
         Метод для получения словаря датафреймов по типам СК. В датафрейме каждая строка - этаж секции объекта и сумма параметра
         Parameters
@@ -101,7 +101,7 @@ class VolumesHelper:
             df_arr[sk] = volumes_df
         return df_arr
 
-    def get_df_arr_sk_dev(self,dfFull,sk_df,co_df_info):
+    def get_df_arr_sk_dev(self,dfFull: pd.DataFrame,sk_df: pd.DataFrame,co_df_info: pd.DataFrame):
         """
         Метод получения словаря датафреймов по СК, где будут значения по этажам, эталон и отклонение
         Parameters
@@ -139,7 +139,7 @@ class VolumesHelper:
         return  df_arr
 
 
-    def get_standarts(self,dfFull,sk_df):
+    def get_standarts(self,dfFull: pd.DataFrame,sk_df: pd.DataFrame):
         """
         Метод получения словаря с датафреймами по эталонам
         Parameters
@@ -338,6 +338,34 @@ class VolumesHelper:
         result.to_excel(f"{directory}\Радиаторы.xlsx",sheet_name="Лист1",index=False)
 
         print('Выгрузка таблицы соответствия радиаторов стандарту завершена')
+
+    def save_concrete_sheet(self,directory:str) -> None:
+        """Сохранение таблицы с объемов бетона (монолит и префаб)
+
+        Parameters
+        ----------
+        directory
+            Директория для сохранения файла
+        """
+        grDf = self.fullDf.groupby(['Наименование ОС','Секция','Этаж'],as_index=False).agg(
+            Морфотип=('Морфотип секции',lambda x: next((v for v in x if v != "Не заполнено"),'ВНИМАНИЕ'))
+            ,Тип_этажа=('Тип этажа',lambda x: next((v for v in x if v != "Не заполнено"),'ВНИМАНИЕ'))
+            ,Пилоны = ('Имя СК',lambda x: next((True for v in x if v == 'Монолитный пилон'),False))
+            ,Стены = ('Имя СК',lambda x: next((True for v in x if v == 'Монолитная стена'),False))
+            ,Марши = ('Имя СК',lambda x: next((True for v in x if v == 'Монолитный марш'),False))
+            ,Площадки = ('Имя СК',lambda x: next((True for v in x if v == 'Монолитная площадка'),False))
+            ,Фунд_плиты = ('Имя СК',lambda x: next((True for v in x if v == 'Монолитная фундаментная плита'),False))
+            ,Сб_марши = ('Имя СК',lambda x: next((True for v in x if v == 'Сборный марш'),False))
+            ,Сб_площадки = ('Имя СК',lambda x: next((True for v in x if v == 'Сборная площадка'),False))
+            ,Сб_балконы = ('Имя СК',lambda x: next((True for v in x if v == 'Сборный балкон'),False))
+            ,Префаб_В = ('Имя СК',lambda x: next((True for v in x if v == 'Префаб. Вертикальная конструкция'),False))
+            ,Префаб_Г = ('Имя СК',lambda x: next((True for v in x if v == 'Префаб. Горизонтальная конструкция'),False))
+            ,Сб_отливы = ('Имя СК',lambda x: next((True for v in x if v == 'Сборный отлив'),False))
+            ,Объем_бетона = ('Объем, м3','sum'))
+        file_name = "\Объем_бетона_ПД.xlsx"
+        path = directory + file_name
+        grDf.to_excel(path,sheet_name='Лист1',index=False)
+        print("Ведомость по объему выгружена")
 
 
 
