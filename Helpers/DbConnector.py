@@ -309,7 +309,8 @@ class DbConnector():
         print("Завершено объединение данных")
 
         #Добавляем к инфо о моделях и их стадиях #Все это Добавил
-        stages_dict = {'656c5b44-4f34-406e-b548-b490f634f862':'Концепция планировок'
+        stages_dict = {'38e9a2db-cd86-4dab-a824-cfc1e70c0ce4':'Архпрограмма'
+                        ,'656c5b44-4f34-406e-b548-b490f634f862':'Концепция планировок'
                        ,'d1df7cfd-38d5-41b9-af73-8274ca8b7eaf':'Стадия П'
                        ,'49f5f46c-d326-4cb5-94de-baa38e9a664c':'Стадия РД'}
         df_model_stages = self.get_model_stages_df(co_df_info)
@@ -377,9 +378,11 @@ class DbConnector():
             Строка с перечислением id стадий выбранных объектов
         """
         stages_obj_df = []
-        stages_dict = {'Концепция планировок':'656c5b44-4f34-406e-b548-b490f634f862'
-                       ,'Стадия П':'d1df7cfd-38d5-41b9-af73-8274ca8b7eaf'
-                       ,'Стадия РД':'49f5f46c-d326-4cb5-94de-baa38e9a664c'}
+        stages_dict = {'Архпрограмма':'38e9a2db-cd86-4dab-a824-cfc1e70c0ce4'
+                        ,'Концепция планировок':'656c5b44-4f34-406e-b548-b490f634f862'
+                       ,'Стадия П': 'd1df7cfd-38d5-41b9-af73-8274ca8b7eaf'
+                       ,'Стадия РД':'49f5f46c-d326-4cb5-94de-baa38e9a664c'
+                       }
         stages = co_df_info['Стадия'].unique()
         for stage in stages:
             obj_count = len(co_df_info[co_df_info['Стадия']==stage])
@@ -417,9 +420,11 @@ class DbConnector():
             Датафрейм с перечислением model_stage и stage выбранных объектов
         """
         stages_obj_df = []
-        stages_dict = {'Концепция планировок':'656c5b44-4f34-406e-b548-b490f634f862'
-                       ,'Стадия П':'d1df7cfd-38d5-41b9-af73-8274ca8b7eaf'
-                       ,'Стадия РД':'49f5f46c-d326-4cb5-94de-baa38e9a664c'}
+        stages_dict = {'Архпрограмма':'38e9a2db-cd86-4dab-a824-cfc1e70c0ce4'
+                        ,'Концепция планировок':'656c5b44-4f34-406e-b548-b490f634f862'
+                       ,'Стадия П': 'd1df7cfd-38d5-41b9-af73-8274ca8b7eaf'
+                       ,'Стадия РД':'49f5f46c-d326-4cb5-94de-baa38e9a664c'
+                       }
         stages = co_df_info['Стадия'].unique()
         for stage in stages:
             obj_count = len(co_df_info[co_df_info['Стадия']==stage])
@@ -764,9 +769,11 @@ class DbConnector():
         # Версии модели
         df_models = self.get_models_versions_full_df(proper_model_stage_id)[['model_id', 'model_stage_id']]
         stages_obj_df = []
-        stages_dict = {'Концепция планировок': '656c5b44-4f34-406e-b548-b490f634f862'
-            , 'Стадия П': 'd1df7cfd-38d5-41b9-af73-8274ca8b7eaf'
-            , 'Стадия РД': '49f5f46c-d326-4cb5-94de-baa38e9a664c'}
+        stages_dict = {'Архпрограмма':'38e9a2db-cd86-4dab-a824-cfc1e70c0ce4'
+                        ,'Концепция планировок':'656c5b44-4f34-406e-b548-b490f634f862'
+                       ,'Стадия П': 'd1df7cfd-38d5-41b9-af73-8274ca8b7eaf'
+                       ,'Стадия РД':'49f5f46c-d326-4cb5-94de-baa38e9a664c'
+                       }
         stages = co_df_info['Стадия'].unique()
         for stage in stages:
             obj_count = len(co_df_info[co_df_info['Стадия'] == stage])
