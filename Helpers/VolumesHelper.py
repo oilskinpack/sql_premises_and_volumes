@@ -367,5 +367,32 @@ class VolumesHelper:
         grDf.to_excel(path,sheet_name='Лист1',index=False)
         print("Ведомость по объему выгружена")
 
+    def get_floor_types_features_by_columns(self):
+        """Получение датасета по этажам секций с признаками для обучения модели (по пилонам)
+
+        Returns
+        -------
+            Датафрейм с признаками по этажам
+        """
+        #Считаем высоту пилонов
+        df = self.fullDf[['Наименование ОС','Стадия','Секция','Этаж','Длина','Толщина','Объем, м3','Тип этажа']].copy()
+        df.loc[:,'pylon_height'] = round(df['Объем, м3'] / ((df['Длина'] * 0.001) * (df['Толщина'] * 0.001)),2)
+
+        #Переименовываем номер секции
+        df = df.rename(mapper={'Секция':'Номер секции'},axis=1)
+
+        #Превращаем этаж в число
+        df.loc[:,'Этаж_Число'] = df['Этаж'].apply(p.parse_floor_to_float).astype(float)
+        df = df.drop('Этаж',axis=1)
+        df = df.rename(mapper={'Этаж_Число':'Этаж'},axis=1)
+
+
+        #Группируем инфо по пилонам
+        df_floors = df.groupby(['Наименование ОС','Стадия','Номер секции','Этаж'],as_index=False).agg(
+            pylon_height=('pylon_height','mean')
+            ,Тип_этажа_BIM=('Тип этажа','first')
+        )
+        return df_floors
+
 
 

@@ -504,3 +504,61 @@ class MultiPremiseHelper:
         # new_prems[[p.bru_category_pn,p.type_pn,p.bru_destination_pn,p.name_pn]].to_excel('D:\загрузки\МОНС01.xlsx',sheet_name='Лист1',index=False)
 
         return new_prems
+    
+    def get_floor_types_features_by_premises(self):
+        """Получение датасета по этажам секций с признаками для обучения модели
+
+        Returns
+        -------
+            Датафрейм с признаками по этажам
+        """
+
+        #Отфильтровываем ГНС, двери, витражи, окна
+        df = self.dfFull
+        df = df[(df[p.bru_destination_pn].isin(['ГНС','Дверь','Витраж','Окно']) == False)
+                &(df[p.bru_destination_pn].notna())].copy()
+
+        #Добавляем площадь gfa для дальнейшей агрегации
+        df.loc[:,'gfa_area'] = np.where(df[p.type_pn] == 'Машино-место',0,df[p.bru_premise_part_area_pn])
+        df[[p.bru_destination_pn,p.type_pn,'gfa_area']]
+
+        #Конвертируем этаж в float
+        df[p.bru_floor_int_pn] =  df[p.bru_floor_int_pn].apply(lambda x: p.convert_str_to_double(x)).astype(float)
+
+        #Датафрейм с этажами секций
+        df_floors = df.groupby(['Наименование ОС','Стадия',p.section_str_pn,p.bru_floor_int_pn],as_index=False).agg(
+            gfa_area=('gfa_area','sum')
+            ,living=(p.type_pn,lambda x: any(x == 'Квартира'))
+            ,retail=(p.bru_destination_pn,lambda x: any(x == 'Ритейл'))
+            ,pantries=(p.bru_destination_pn,lambda x: any(x == 'Кладовки'))
+            ,cars=(p.type_pn,lambda x: any(x == 'Машино-место'))
+            ,technical=(p.type_pn,lambda x: any(x == 'Технические помещения'))
+            ,terrase_ground=(p.name_pn,lambda x: any(x == 'Терраса на земле'))
+            ,attic=(p.name_pn,lambda x: any(x == 'Технический чердак'))
+            ,tech_fl_prem=(p.name_pn,lambda x: any(x == 'Технический этаж'))
+            ,tambour=(p.name_pn,lambda x: any(x == 'Тамбур'))
+            ,tambour_lock=(p.name_pn,lambda x: any(x == 'Тамбур-шлюз'))
+            )
+
+        #Паркинг
+        df_floors['parking'] = df_floors[p.section_str_pn].str.contains('Паркинг')
+
+
+        # #Датафрейм с агрегацией по секциям
+        df_agg_sections = df_floors.groupby(['Наименование ОС','Стадия',p.section_str_pn],as_index=False).agg(
+            mean_gfa=('gfa_area','mean')
+            ,min_floor=(p.bru_floor_int_pn,'min')
+            ,max_floor=(p.bru_floor_int_pn,'max')
+            ,mean_floor=(p.bru_floor_int_pn,'mean')
+        )
+
+        #Соединяем агрег инфо по секциям с инфо по этажам
+        df_floors = pd.merge(df_floors,df_agg_sections,how='left',on=['Наименование ОС','Стадия','Номер секции'])
+        df_floors['delta_gfa_perc'] = round((df_floors['gfa_area'] - df_floors['mean_gfa']) / df_floors['mean_gfa'] * 100)
+
+        #Округление
+        df_floors.loc[:,'gfa_area'] = df_floors['gfa_area'].round(2)
+        df_floors.loc[:,'mean_gfa'] = df_floors['mean_gfa'].round(2)
+        df_floors.loc[:,'mean_floor'] = df_floors['mean_floor'].round(2)
+
+        return df_floors
