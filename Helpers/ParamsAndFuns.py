@@ -335,6 +335,58 @@ class ParamsAndFuns:
         with open(dir + fr'\{short_name}_info.txt', "w") as file:
             file.write(log)
 
+    @staticmethod
+    def parse_floor_to_float(floor_string: str) -> float | None:
+        """
+        Превращает строковое представление этажа (например, "Этаж -02") во float.
+
+        Args:
+            floor_string: Строка для преобразования.
+
+        Returns:
+            Float значение этажа или None в случае ошибки формата.
+        """
+        try:
+            # 1. Разделяем строку по пробелу: "Этаж -02" -> ['Этаж', '-02']
+            parts = floor_string.split(' ')
+            
+            # 2. Берем последнюю часть, которая является числом
+            number_part = parts[-1]
+            
+            # 3. Преобразуем строку в целое число.
+            #    Функция int() сама правильно обработает "-02" -> -2 и "01" -> 1.
+            floor_int = int(number_part)
+            
+            # 4. Преобразуем целое число во float и возвращаем.
+            return float(floor_int)
+        
+        except (ValueError, IndexError):
+            # Если формат строки неверный (например, "Просто текст" или пустая строка),
+            # перехватываем ошибку и возвращаем None.
+            print(f"Ошибка: неверный формат строки '{floor_string}'")
+            return None
+        
+    @staticmethod
+    def convert_str_to_double(val):
+        """Превращает значения этажа "1,0" из строки во float (также заменяет запятые)
+
+        Parameters
+        ----------
+        val
+            Значение
+
+        Returns
+        -------
+            float значение этажа
+        """
+        if isinstance(val,str):
+            new_val = val.replace(',','.')
+            return float(new_val)
+        elif val is None or val is np.nan:
+            return np.nan
+        else:
+            return float(val)
+
 
 
 
