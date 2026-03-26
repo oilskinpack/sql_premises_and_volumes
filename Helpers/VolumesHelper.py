@@ -6,6 +6,8 @@ from Helpers.ParamsAndFuns import ParamsAndFuns as p
 import seaborn as sns
 import matplotlib.pyplot as plt
 from Helpers.DbConnector import DbConnector
+import math
+import re
 
 
 class VolumesHelper:
@@ -393,6 +395,83 @@ class VolumesHelper:
             ,Тип_этажа_BIM=('Тип этажа','first')
         )
         return df_floors
+
+    def save_prefab_nomenclature(self,directory):
+        res = self.fullDf.groupby(['Наименование ОС','Стадия','Имя СК','Наименование'],as_index=False).agg(Бетон_м3=('Объем, м3','sum')
+                                                                                                   ,Кол_во=("Имя СК",'count'))
+        res['Бетон_м3'] = round(res['Бетон_м3'],3)
+        file_name = "\ПрефабНоменклатура.xlsx"
+        full_path = directory + file_name
+        res.to_excel(full_path,sheet_name='Лист1',index=False)
+        print("Номенклатура префаба выгружена")
+    
+    def save_second_facade(self,directory):
+        sec_df = (self.fullDf[['Имя СК','Секция','Этаж',
+                                                      'Оси','Материал','Цвет',
+                                                      'Толщина','Формат', 'Второй фасад',
+                                                      'Количество слоев','Площадь, м2'
+                                                      ]].groupby(['Имя СК','Секция','Этаж','Оси','Толщина','Второй фасад','Количество слоев'],as_index=False)
+                                                      .agg(Материал=('Материал',lambda x: '; '.join(set(x)))
+                                                           ,Цвет=('Цвет',lambda x: '; '.join(set(x)))
+                                                           ,Формат=('Формат',lambda x: '; '.join(set(x)))
+                                                           ,Площадь_м2=('Площадь, м2','sum')
+                                                           ))
+        file_name = "\ВторойФасадНоменклатура.xlsx"
+        full_path = directory + file_name
+        sec_df.to_excel(full_path,index=False,sheet_name='Лист1')
+        print("Номенклатура второго фасада выгружена")
+    
+    def save_armature(self,directory):
+        
+        mm3_to_m3 = 0.000000001
+        pog_mass = 7.85 * (10 ** 3)
+        sk_length = ["Арматурное изделие","Прокат арматурный"]
+        sk_instance = ['Сетка арматурная']
+
+
+        def extract_weight(text):
+            pattern = r"(?:\[|\()(\d+,\d+)\s*(?:т\/шт|т)(?:\]|\))"
+            match = re.search(pattern, text)
+            if match:
+                weight_str = match.group(1)
+                # Заменяем запятую на точку для преобразования в float
+                return float(weight_str.replace(',', '.'))
+            return 0
+
+        #Расчеты
+        df = self.dfFull[['construction_object_id','Наименование ОС','Секция'
+                    ,'Имя СК','Класс','Диаметр'
+                    ,'Полная длина стержня, мм','Наименование','Масса, т']]
+        #Для стержней
+        df.loc[:,'S стержня, мм2'] = ((df['Диаметр'] ** 2) * math.pi) / 4
+        df.loc[:, "Объем, м3_Расч"] = df['S стержня, мм2'] * df['Полная длина стержня, мм'] * mm3_to_m3
+        df.loc[:, "Масса стержня, т_Расч"] = (df["Объем, м3_Расч"] * pog_mass) / 1000
+        #Для сеток
+        df.loc[:, "Масса сетки_Парс"] =  df['Наименование'].apply(extract_weight)
+        df.loc[:, "Масса сетки"] =  np.where(df["Масса сетки_Парс"] == 0
+                                                , df['Масса, т']
+                                                , df['Масса сетки_Парс']
+                                                )
+        #Считаем
+        df.loc[:, "Объем, т"] = np.where(df['Имя СК'].isin(sk_length)
+                                        ,df["Масса стержня, т_Расч"]
+                                        ,np.where(df['Имя СК'].isin(sk_instance)
+                                                    ,df["Масса сетки"]
+                                                    ,0))
+
+        #Группирование
+        res = df.groupby(['construction_object_id','Наименование ОС','Секция','Имя СК','Класс','Диаметр'],as_index=False).agg(Объем_т=("Объем, т",'sum'))
+        res.loc[:,"Объем_т"] = round(res["Объем_т"],6)
+        file_name = "НоменклатураАрматуры.xlsx"
+        full_path = directory + file_name
+        res.to_excel(full_path,sheet_name='Лист1',index=False)
+        print("Номенклатура арматуры выгружена")
+    
+    def save_radiators_nomenclature(self,directory):
+        df = dfFull[dfFull['Тип'] != 'Конвектор']
+        res = df.groupby(['Наименование ОС','Наименование','Размер'],as_index=False).agg(Кол_во=('Наименование ОС','count'))
+        res.to_excel(directory+"\НоменклатураРадиаторов.xlsx",sheet_name="Лист1",index=False)
+        print("Номенклатура радиаторов сохранена")
 
 
 

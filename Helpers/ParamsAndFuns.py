@@ -386,6 +386,78 @@ class ParamsAndFuns:
             return np.nan
         else:
             return float(val)
+    
+    @staticmethod
+    def expand_sections(df, col='Номер секции', prefix_word='Секция'):
+        """Метод копирует (дублирует в дф) строки где col (Номер секции) имеет вид Секция 1-2 или Секция 1-3 (работает и с запятой)
+        Остальные значения остаются неизменными
+
+        Parameters
+        ----------
+        df
+            Датафрейм
+        col, optional
+            Название колонки
+        prefix_word, optional
+            Префикс слово
+
+        Returns
+        -------
+            Датафрейм
+        """
+        df = df.copy()  # работаем с копией, чтобы не трогать исходник
+        s = df[col].astype(str)  # на всякий случай приводим к str
+
+        # Маска: строки с диапазоном через дефис (поддерживаем разные тире)
+        range_pat = rf'(?i)({prefix_word})\s*(\d+)\s*[-–—]\s*(\d+)'
+        # Маска: строки с перечислением через запятую
+        list_pat = rf'(?i)({prefix_word})\s*(\d+(?:\s*[ ,;]\s*\d+)*)'
+
+        rows = []
+        for _, row in df.iterrows():
+            val = str(row[col])
+            # сначала пробуем диапазон вида "Секция 1-3"
+            m = re.search(range_pat, val)
+            if m:
+                prefix = m.group(1)  # сохраняем оригинальное слово "Секция" (в исходном регистре)
+                start = int(m.group(2))
+                end = int(m.group(3))
+                if start <= end:
+                    nums = range(start, end + 1)
+                else:
+                    nums = range(start, end - 1, -1)  # если диапазон записан в обратном порядке
+                for n in nums:
+                    new = row.copy()
+                    new[col] = f"{prefix} {n}"
+                    rows.append(new)
+                continue
+
+            # затем пробуем перечисление через запятую/пробел/точка с запятой: "Секция 6,7" или "Секция 6 7"
+            m2 = re.search(list_pat, val)
+            if m2:
+                prefix = m2.group(1)
+                nums_part = m2.group(2)
+                # разбиваем по запятой, точке с запятой или пробелам
+                parts = re.split(r'[ ,;]+', nums_part.strip())
+                # если parts — одиночное число, то выше бы не попали в m2? всё равно обработаем
+                if len(parts) > 1:
+                    for pnum in parts:
+                        try:
+                            n = int(pnum)
+                        except ValueError:
+                            # если не число, оставляем оригинальную строку
+                            rows.append(row)
+                            break
+                        new = row.copy()
+                        new[col] = f"{prefix} {n}"
+                        rows.append(new)
+                    continue
+
+            # если ничего не подошло — оставляем строку как есть
+            rows.append(row)
+
+        result = pd.DataFrame(rows).reset_index(drop=True)
+        return result
 
 
 

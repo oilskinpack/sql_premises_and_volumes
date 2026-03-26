@@ -450,7 +450,7 @@ class MultiPremiseHelper:
 
         return not_living_df
     
-    def save_etp_form(self,directory: str) -> None:
+    def save_etp_form(self,directory: str):
         """Сохранение формы ЕТП
 
         Parameters
@@ -479,6 +479,8 @@ class MultiPremiseHelper:
             print("Файл ЕТП успешно сохранен!")
         except Exception as e:
             print(f"Ошибка при сохранении: {e}")
+        
+        return [flats,not_living,common]
 
     def show_new_premises_for_dictionary(self) -> pd.DataFrame:
         """Показывает какие помещения из квартирографии не занесены в справочник помещений
@@ -504,6 +506,28 @@ class MultiPremiseHelper:
         # new_prems[[p.bru_category_pn,p.type_pn,p.bru_destination_pn,p.name_pn]].to_excel('D:\загрузки\МОНС01.xlsx',sheet_name='Лист1',index=False)
 
         return new_prems
+    
+
+    def add_revit_ids_to_premises(self):
+        """Добавляет к датафрейму айдишники ревит элементов
+
+        Returns
+        -------
+            Датафрейм с айди
+        """
+        current_df = self.dfFull
+
+        #Получаем айди элементов
+        elem_ids = str(tuple(current_df.index.astype(str).to_list()))
+        elem_ids
+
+        #Подключаемся к бд и берем нужные элементы
+        con = self.dbCon
+        myQuery = f"SELECT model_version_element_id,id FROM bim.model_version_elements WHERE model_version_element_id IN {elem_ids}"
+        df_ids = pd.read_sql_query(myQuery, con=con.engine)
+
+        current_df = current_df.merge(df_ids,how='left',on='model_version_element_id')
+        return current_df
     
     def get_floor_types_features_by_premises(self):
         """Получение датасета по этажам секций с признаками для обучения модели
