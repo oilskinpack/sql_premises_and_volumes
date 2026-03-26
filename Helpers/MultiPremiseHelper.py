@@ -586,3 +586,142 @@ class MultiPremiseHelper:
         df_floors.loc[:,'mean_floor'] = df_floors['mean_floor'].round(2)
 
         return df_floors
+    
+
+    def get_unique_attr_of_flast(self):
+        df = self.dfFull
+
+        #Берем помещения квартир
+        premises = df[df[p.bru_destination_pn] == 'Жилье']
+        premises = premises.copy()[[
+                    'Наименование ОС'
+                    ,p.adsk_premise_number
+                    ,p.section_str_pn
+                    ,p.rooms_sale_count
+                    ,p.bru_premise_non_summer_area_pn
+                    ,p.bru_premise_summer_area_pn
+                    ,p.bru_premise_full_area_pn
+                    ,p.bru_floor_int_pn
+                    ,p.name_pn
+                    ,p.bru_premise_part_area_pn
+                    ,"Антресоль"
+                    ,"Дуплекс"
+                    ,"С цокольным этажом"
+                    ,"Терраса на кровле"
+                    ,"Терраса на земле"
+                    ,"Летняя кухня на крыше"
+                    ,"Второй свет"
+                    ,"Отдельный вход"
+                    ,"Пентхаус"
+                    ,"Свободная планировка"
+                    ]]
+
+        #Определяем уникальность
+        premises["Уникальность"] = (premises["Терраса на кровле"] 
+                                + premises["Терраса на земле"]
+                                + premises["Антресоль"]
+                                + premises["Дуплекс"]
+                                + premises["С цокольным этажом"]
+                                + premises["Летняя кухня на крыше"]
+                                + premises["Второй свет"]
+                                + premises["Отдельный вход"]
+                                + premises["Пентхаус"]
+                                + premises["Свободная планировка"]
+                                ) > 0
+        # premises['Уникальность'] = premises['Уникальность'].apply(lambda x: "Особенная" if x == True else "Стандартная")
+
+
+        res = premises.groupby(["Наименование ОС",p.adsk_premise_number],as_index=False).agg(
+            Кол_во_комнат_продаж=("Количество комнат для продаж","min")
+            ,Секция=(p.section_str_pn,'first')
+            ,Терраса_на_кровле=("Терраса на кровле","any")
+            ,Терраса_на_земле=("Терраса на земле","any")
+            ,Антресоль=("Антресоль","any")
+            ,Дуплекс=("Дуплекс","any")
+            ,Цоколь=("С цокольным этажом","any")
+            ,Летняя_кухня_на_крыше=("Летняя кухня на крыше","any")
+            ,Второй_свет=("Второй свет","any")
+            ,Отдельный_вход=("Отдельный вход","any")
+            ,Пентхаус=("Пентхаус","any")
+            ,СП=("Свободная планировка","any")
+            ,Уникальность=("Уникальность","any")
+        # )
+        )
+        # res.to_excel('ВыгрузкаПоКвартирам.xlsx',sheet_name='Лист1',index=False)
+        print('Успех')
+        return res
+    
+    def get_vehicles_in_living(self):
+        """
+        Метод для выгрузки велосипедных и колясочных
+        """
+        df = self.dfFull
+
+        #Справочник объектов, секций и этажности
+        premises = df[
+            (df[p.bru_destination_pn].isin(['ГНС','Окно','Витраж','Дверь']) == False)
+            & (df[p.section_str_pn].str.contains('Паркинг') == False) 
+            & (df["Вид помещения"] != "Машино-место") 
+            ]
+        premises = premises[['Наименование ОС',p.section_str_pn,p.bru_floor_int_pn]]
+        premises = premises[premises[p.section_str_pn].str.contains("Секция")]
+        premises['Секция_int'] = premises[p.section_str_pn].str.replace("Секция ","").astype(float)
+        premises = premises.sort_values(['Наименование ОС', 'Секция_int'])
+        premises = premises.drop('Секция_int',axis=1)
+        premises = premises.rename({'Номер секции':'Секция'},axis=1)
+        sect_dict = premises.groupby(['Наименование ОС','Секция'],as_index=False).agg(Этажность=('Этаж','max'))
+        
+
+        #Собираем квартиры
+        flats = df[(df[p.bru_destination_pn] == "Жилье") & (df[p.section_str_pn].str.contains('Паркинг') == False)] \
+                    .groupby(['Наименование ОС',p.adsk_premise_number],as_index=False) \
+                    .agg(
+                        Секция=(p.section_str_pn, 'first'),
+                        Кол_во_комнат=(p.rooms_sale_count,'max')
+                    )
+        flats['Тип квартиры'] = flats['Кол_во_комнат'].astype(int).astype(str) + "С"
+        flats = flats.drop(columns=[p.adsk_premise_number,"Кол_во_комнат"],axis=1)
+        flats['Кол-во'] = 1
+
+        #Пивот кварти
+        flats_pivot = flats.pivot_table(
+            index=['Наименование ОС', 'Секция'], 
+            columns='Тип квартиры', 
+            values='Кол-во', 
+            aggfunc='sum', 
+            fill_value=0
+        ).reset_index()
+        flats_pivot['Секция_int'] = flats_pivot['Секция'].str.replace("Секция ","").astype(float)
+        flats_pivot = flats_pivot.sort_values(['Наименование ОС', 'Секция_int'])
+        flats_pivot = flats_pivot.drop('Секция_int',axis=1)
+        
+        #Собираем мопы
+        common = df[
+            (df[p.bru_destination_pn] == "МОП") 
+            & (df[p.section_str_pn].str.contains('Паркинг') == False) 
+            & (df[p.bru_category_pn] == "Жилье")
+            ][['Наименование ОС',p.section_str_pn,p.name_pn,p.bru_premise_part_area_pn,p.bru_floor_int_pn]]
+
+        #Преобразуем в нужный вид
+        common['Велосипедная'] = common[p.name_pn].str.contains("велосипедная",False) == True
+        common['Колясочная'] = common[p.name_pn].str.contains("колясочная",False) == True
+        common['Велосипедная_S'] = np.where(common['Велосипедная'],common[p.bru_premise_part_area_pn],0)
+        common['Колясочная_S'] = np.where(common['Колясочная'],common[p.bru_premise_part_area_pn],0)
+        vecicle = common.groupby(['Наименование ОС',p.section_str_pn],as_index=False) \
+                        .agg(
+                            Велосипедная=('Велосипедная','any'),
+                            Велосипедная_ΣS=('Велосипедная_S','sum'),
+                            Колясочная=('Колясочная','any'),
+                            Колясочная_ΣS=('Колясочная_S','sum'),
+                            Этажность=(p.bru_floor_int_pn,'max')
+                        )
+        vecicle['Секция_int'] = vecicle[p.section_str_pn].str.replace("Секция ","").astype(float)
+        vecicle = vecicle.sort_values(['Наименование ОС', 'Секция_int'])
+        vecicle = vecicle.drop('Секция_int',axis=1)
+        vecicle = vecicle.rename({'Номер секции':'Секция'},axis=1)
+        
+        #Джоиним
+        res = pd.merge(left=sect_dict,right=flats_pivot,how='left',on=['Наименование ОС','Секция'])
+        res = pd.merge(left=res,right=vecicle,how='left',on=['Наименование ОС','Секция'])
+
+        return res
